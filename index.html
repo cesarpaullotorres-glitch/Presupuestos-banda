@@ -40,7 +40,7 @@
 
         .grid-integrantes {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
             gap: 12px; padding: 15px 0; padding-bottom: 80px;
         }
 
@@ -84,6 +84,21 @@
         .input-tabla.bolo { border-color: #9c27b0; color: #7b1fa2; width: 75px; }
         .texto-inactivo { color: #aaa; text-decoration: line-through; font-size: 0.8rem; }
 
+        /* ✅ NUEVO: Fila pagada */
+        tr.fila-pagada td { background-color: #d4edda !important; color: #155724; }
+        tr.fila-pagada td:last-child { font-weight: bold; color: #155724 !important; }
+        .btn-pagar {
+            background: #28a745; color: white; border: none; border-radius: 4px;
+            padding: 4px 8px; font-size: 12px; cursor: pointer; margin-left: 4px;
+            white-space: nowrap;
+        }
+        .btn-pagar:hover { background: #1e7e34; }
+        .btn-pagar.yape { background: #6f35a5; }
+        .btn-pagar.yape:hover { background: #5a2a8a; }
+        .btn-pagar.plin { background: #00a8e0; }
+        .btn-pagar.plin:hover { background: #0087b8; }
+        .check-pagado { width: 18px; height: 18px; cursor: pointer; accent-color: #28a745; }
+
         .lista-contratos { list-style: none; padding: 0; max-width: 600px; margin: 15px auto; }
         .item-contrato {
             background: white; padding: 14px; margin-bottom: 10px; border-radius: 8px;
@@ -101,7 +116,6 @@
         .alerta.roja { background: #fff5f5; color: #c53030; border-left: 3px solid #c53030; }
         .alerta.verde { background: #f0fff4; color: #2f855a; border-left: 3px solid #2f855a; }
         
-        /* Estilos para meses desplegables */
         .titulo-mes { 
             background-color: #e3f2fd; padding: 12px; border-radius: 6px; 
             font-weight: bold; margin: 18px 0 10px 0; text-align: left; 
@@ -195,6 +209,22 @@
             border-top: 3px solid #28a745;
         }
 
+        /* ✅ NUEVO: estilos staff con celular y método de pago */
+        .staff-metodo-pago {
+            display: flex; gap: 6px; margin-bottom: 10px; align-items: center;
+        }
+        .staff-metodo-pago select {
+            margin-bottom: 0; padding: 8px; font-size: 13px;
+        }
+        .badge-yape {
+            background: #6f35a5; color: white; padding: 2px 8px;
+            border-radius: 12px; font-size: 0.75rem; font-weight: bold;
+        }
+        .badge-plin {
+            background: #00a8e0; color: white; padding: 2px 8px;
+            border-radius: 12px; font-size: 0.75rem; font-weight: bold;
+        }
+
         @media (max-width: 480px) {
             .grupo-horas { flex-direction: column; gap: 0; }
             input[type="time"] { max-width: 100%; }
@@ -283,7 +313,7 @@
             <table class="tabla-excel">
                 <thead>
                     <tr>
-                        <th>Músico</th><th>Precio/h</th><th>Horas</th><th>Bolo</th><th>Adelanto</th><th>Neto</th>
+                        <th>Músico</th><th>Precio/h</th><th>Horas</th><th>Bolo</th><th>Adelanto</th><th>Neto</th><th>Pagado</th><th>Pagar</th>
                     </tr>
                 </thead>
                 <tbody id="tabla-resultados-body"></tbody>
@@ -366,16 +396,15 @@
     </div>
 
     <script>
-        // CONFIGURACIÓN COMPLETA DE FIREBASE
         const firebaseConfig = {
-        apiKey: "AIzaSySyBhf6dRmAzRjORmGLKnJHfzelt01I",
-        authDomain: "presupuestopararevelacion.firebaseapp.com",
-        databaseURL: "https://presupuestopararevelacion-default-rtdb.firebaseio.com",
-        projectId: "presupuestopararevelacion",
-        storageBucket: "presupuestopararevelacion.appspot.com",
-        messagingSenderId: "55951143914",
-        appId: "1:55951143914:web:ea7edb2e8a55c8d331",
-        measurementId: "G-P3PY089YKC"
+            apiKey: "AIzaSySyBhf6dRmAzRjORmGLKnJHfzelt01I",
+            authDomain: "presupuestopararevelacion.firebaseapp.com",
+            databaseURL: "https://presupuestopararevelacion-default-rtdb.firebaseio.com",
+            projectId: "presupuestopararevelacion",
+            storageBucket: "presupuestopararevelacion.appspot.com",
+            messagingSenderId: "55951143914",
+            appId: "1:55951143914:web:ea7edb2e8a55c8d331",
+            measurementId: "G-P3PY089YKC"
         };
         
         const app = firebase.initializeApp(firebaseConfig);
@@ -441,7 +470,6 @@
                         this.controlador.iniciarAgrupacion(true);
                         if (this.estado.contratos && this.estado.contratos.length > 0) {
                             this.navegacion.irA('pantalla-historial');
-                            // ✅ Carga total en caja al iniciar
                             this.adelantos.actualizarDetalle();
                         } else {
                             this.navegacion.irA('pantalla-staff');
@@ -549,6 +577,45 @@
                         const fechaB = b.datos.fechaContrato ? new Date(b.datos.fechaContrato) : new Date(0);
                         return fechaA - fechaB;
                     });
+                },
+
+                // ✅ NUEVO: obtener datos de pago del staff por nombre
+                obtenerDatosPago(nombreDisplay) {
+                    const clave = nombreDisplay.toLowerCase();
+                    const musico = App.estado.staff[clave];
+                    if (!musico) return { celular: null, metodoPago: null };
+                    return {
+                        celular: musico.celular || null,
+                        metodoPago: musico.metodoPago || null
+                    };
+                },
+
+                // ✅ NUEVO: copiar número al portapapeles
+                async copiarCelular(nombreDisplay, boton) {
+                    const datos = this.obtenerDatosPago(nombreDisplay);
+                    if (!datos.celular) {
+                        alert(`⚠️ ${nombreDisplay} no tiene número de celular registrado en el Staff.`);
+                        return;
+                    }
+                    try {
+                        await navigator.clipboard.writeText(datos.celular);
+                        const textoOriginal = boton.textContent;
+                        boton.textContent = '✅ Copiado!';
+                        boton.style.background = '#28a745';
+                        setTimeout(() => {
+                            boton.textContent = textoOriginal;
+                            boton.style.background = '';
+                        }, 2000);
+                    } catch (e) {
+                        // Fallback para navegadores sin soporte clipboard
+                        const input = document.createElement('input');
+                        input.value = datos.celular;
+                        document.body.appendChild(input);
+                        input.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(input);
+                        alert(`📋 Número copiado: ${datos.celular}`);
+                    }
                 }
             },
 
@@ -605,13 +672,21 @@
                     for (let i = 1; i <= 50; i++) {
                         const nombreInput = document.getElementById(`staff-nombre-${i}`);
                         const tarifaInput = document.getElementById(`staff-tarifa-${i}`);
+                        const celularInput = document.getElementById(`staff-celular-${i}`);
+                        const metodoPagoInput = document.getElementById(`staff-metodo-${i}`);
                         if (!nombreInput || !tarifaInput) continue;
                         const nombre = nombreInput.value.trim();
                         if (nombre) {
                             const clave = nombre.toLowerCase();
                             if (nombresUsados.has(clave)) { alert(`El nombre "${nombre}" está repetido`); return; }
                             nombresUsados.add(clave);
-                            nuevoStaff[clave] = { nombreOriginal: nombre, tarifa: App.util.num(tarifaInput.value) };
+                            nuevoStaff[clave] = {
+                                nombreOriginal: nombre,
+                                tarifa: App.util.num(tarifaInput.value),
+                                // ✅ NUEVO: guardar celular y método de pago
+                                celular: celularInput ? celularInput.value.trim() : '',
+                                metodoPago: metodoPagoInput ? metodoPagoInput.value : 'Yape'
+                            };
                         }
                     }
                     App.estado.staff = nuevoStaff;
@@ -667,7 +742,8 @@
                                 tarifaHora: musicoStaff ? musicoStaff.tarifa : 0,
                                 horasTocadas: App.estado.contratoActual.horas,
                                 boloGlobal: 0,
-                                adelantoDado: 0
+                                adelantoDado: 0,
+                                pagado: false  // ✅ NUEVO: estado de pago
                             });
                         }
                     }
@@ -725,6 +801,8 @@
                     App.estado.contratoEditandoIndex = indiceReal;
                     App.estado.contratoActual = JSON.parse(JSON.stringify(contrato.datos));
                     App.estado.seleccionados = JSON.parse(JSON.stringify(contrato.personal));
+                    // ✅ Asegurar que todos tengan campo pagado
+                    App.estado.seleccionados.forEach(m => { if (m.pagado === undefined) m.pagado = false; });
                     App.estado.gastoMovilidadReal = contrato.gastoMovilidad || 0;
                     document.getElementById('input-nombre-contrato').value = contrato.datos.nombre;
                     document.getElementById('input-fecha-firma').value = contrato.datos.fechaFirma || "";
@@ -766,6 +844,15 @@
                     }
                 },
 
+                // ✅ NUEVO: toggle estado pagado
+                togglePagado(id) {
+                    const musico = App.estado.seleccionados.find(m => m.id === id);
+                    if (musico) {
+                        musico.pagado = !musico.pagado;
+                        this.actualizarTodo();
+                    }
+                },
+
                 actualizarMovilidad(valor) {
                     App.estado.gastoMovilidadReal = App.util.num(valor);
                     this.actualizarTodo();
@@ -793,6 +880,7 @@
                     if (!grid) return;
                     grid.innerHTML = '';
                     for (let i = 1; i <= 50; i++) {
+                        // ✅ NUEVO: agregar campos celular y método de pago
                         grid.innerHTML += `
                             <div class="recuadro">
                                 <strong>Músico ${i}</strong><br>
@@ -801,6 +889,11 @@
                                     <input type="number" step="0.01" placeholder="Tarifa/Hora" id="staff-tarifa-${i}" style="width:90px;">
                                     <span>S/.</span>
                                 </div>
+                                <input type="tel" placeholder="📱 Celular (Yape/Plin)" id="staff-celular-${i}" maxlength="9">
+                                <select id="staff-metodo-${i}">
+                                    <option value="Yape">💜 Yape</option>
+                                    <option value="Plin">💙 Plin</option>
+                                </select>
                             </div>`;
                     }
                     const nombres = Object.keys(App.estado.staff);
@@ -808,9 +901,13 @@
                         const i = index + 1;
                         const nombreEl = document.getElementById(`staff-nombre-${i}`);
                         const tarifaEl = document.getElementById(`staff-tarifa-${i}`);
+                        const celularEl = document.getElementById(`staff-celular-${i}`);
+                        const metodoEl = document.getElementById(`staff-metodo-${i}`);
                         if(nombreEl && tarifaEl) {
                             nombreEl.value = App.estado.staff[clave].nombreOriginal;
                             tarifaEl.value = App.estado.staff[clave].tarifa;
+                            if (celularEl) celularEl.value = App.estado.staff[clave].celular || '';
+                            if (metodoEl) metodoEl.value = App.estado.staff[clave].metodoPago || 'Yape';
                         }
                     });
                 },
@@ -842,61 +939,76 @@
                         let bruto = 0;
                         let celdaPrecio = '0.00';
                         let celdaHoras = '0.00';
-                        let celdaB
-let celdaBolo = '';
+                        let celdaBolo = '';
 
-if (m.tipo === 'utilero') {
-    bruto = m.boloGlobal;
-    celdaPrecio = 'N/A';
-    celdaHoras = 'N/A';
-    celdaBolo = `<input type="number" step="0.01" class="input-tabla bolo" value="${m.boloGlobal}" 
-        onblur="App.calculos.actualizarCampo(${m.id}, 'boloGlobal', this.value)" 
-        onkeypress="if(event.key === 'Enter') App.calculos.actualizarCampo(${m.id}, 'boloGlobal', this.value)">`;
-} else {
-    if (m.boloGlobal > 0) {
-        bruto = m.boloGlobal;
-        celdaPrecio = 'Fijo';
-        celdaHoras = 'Fijo';
-        celdaBolo = `<input type="number" step="0.01" class="input-tabla bolo" value="${m.boloGlobal}" 
-            onblur="App.calculos.actualizarCampo(${m.id}, 'boloGlobal', this.value)" 
-            onkeypress="if(event.key === 'Enter') App.calculos.actualizarCampo(${m.id}, 'boloGlobal', this.value)">`;
-    } else {
-        bruto = m.tarifaHora * m.horasTocadas;
-        celdaPrecio = `<input type="number" step="0.01" class="input-tabla tarifa" value="${m.tarifaHora}" 
-            onblur="App.calculos.actualizarCampo(${m.id}, 'tarifaHora', this.value)" 
-            onkeypress="if(event.key === 'Enter') App.calculos.actualizarCampo(${m.id}, 'tarifaHora', this.value)">`;
-        celdaHoras = `<input type="number" step="0.5" min="0" class="input-tabla horas" value="${m.horasTocadas}" 
-            onblur="App.calculos.actualizarCampo(${m.id}, 'horasTocadas', this.value)" 
-            onkeypress="if(event.key === 'Enter') App.calculos.actualizarCampo(${m.id}, 'horasTocadas', this.value)">`;
-    }
-}
+                        if (m.tipo === 'utilero') {
+                            bruto = m.boloGlobal;
+                            celdaPrecio = 'N/A';
+                            celdaHoras = 'N/A';
+                            celdaBolo = `<input type="number" step="0.01" class="input-tabla bolo" value="${m.boloGlobal}" 
+                                onblur="App.calculos.actualizarCampo(${m.id}, 'boloGlobal', this.value)" 
+                                onkeypress="if(event.key === 'Enter') App.calculos.actualizarCampo(${m.id}, 'boloGlobal', this.value)">`;
+                        } else {
+                            if (m.boloGlobal > 0) {
+                                bruto = m.boloGlobal;
+                                celdaPrecio = 'Fijo';
+                                celdaHoras = 'Fijo';
+                                celdaBolo = `<input type="number" step="0.01" class="input-tabla bolo" value="${m.boloGlobal}" 
+                                    onblur="App.calculos.actualizarCampo(${m.id}, 'boloGlobal', this.value)" 
+                                    onkeypress="if(event.key === 'Enter') App.calculos.actualizarCampo(${m.id}, 'boloGlobal', this.value)">`;
+                            } else {
+                                bruto = m.tarifaHora * m.horasTocadas;
+                                celdaPrecio = `<input type="number" step="0.01" class="input-tabla tarifa" value="${m.tarifaHora}" 
+                                    onblur="App.calculos.actualizarCampo(${m.id}, 'tarifaHora', this.value)" 
+                                    onkeypress="if(event.key === 'Enter') App.calculos.actualizarCampo(${m.id}, 'tarifaHora', this.value)">`;
+                                celdaHoras = `<input type="number" step="0.5" min="0" class="input-tabla horas" value="${m.horasTocadas}" 
+                                    onblur="App.calculos.actualizarCampo(${m.id}, 'horasTocadas', this.value)" 
+                                    onkeypress="if(event.key === 'Enter') App.calculos.actualizarCampo(${m.id}, 'horasTocadas', this.value)">`;
+                            }
+                        }
 
-const adelanto = m.adelantoDado;
-const neto = bruto - adelanto;
-totalBruto += bruto;
-totalAdelantos += adelanto;
-totalNeto += neto;
+                        const adelanto = m.adelantoDado;
+                        const neto = bruto - adelanto;
+                        totalBruto += bruto;
+                        totalAdelantos += adelanto;
+                        totalNeto += neto;
 
-if (m.nombreDisplay.toLowerCase() === 'césar') {
-    pagoCesar = neto;
-    pagoTrabajoCesar = bruto;
-}
-if (m.nombreDisplay.toLowerCase() === 'lidia') {
-    pagoLidia = neto;
-    pagoTrabajoLidia = bruto;
-}
+                        if (m.nombreDisplay.toLowerCase() === 'césar') {
+                            pagoCesar = neto;
+                            pagoTrabajoCesar = bruto;
+                        }
+                        if (m.nombreDisplay.toLowerCase() === 'lidia') {
+                            pagoLidia = neto;
+                            pagoTrabajoLidia = bruto;
+                        }
 
-const fila = document.createElement('tr');
-fila.innerHTML = `
-    <td>${m.nombreDisplay}</td>
-    <td>${celdaPrecio}</td>
-    <td>${celdaHoras}</td>
-    <td>${celdaBolo || '-'}</td>
-    <td><input type="number" step="0.01" class="input-tabla adelanto" value="${adelanto}" 
-        onblur="App.calculos.actualizarCampo(${m.id}, 'adelantoDado', this.value)" 
-        onkeypress="if(event.key === 'Enter') App.calculos.actualizarCampo(${m.id}, 'adelantoDado', this.value)"></td>
-    <td style="font-weight: bold; color: #28a745;">S/. ${neto.toFixed(2)}</td>`;
-tbody.appendChild(fila);
+                        // ✅ NUEVO: botón de pago con método del staff
+                        const datosPago = App.util.obtenerDatosPago(m.nombreDisplay);
+                        const metodo = datosPago.metodoPago || 'Yape';
+                        const claseBtn = metodo === 'Yape' ? 'yape' : 'plin';
+                        const celdaPagar = datosPago.celular
+                            ? `<button class="btn-pagar ${claseBtn}" onclick="App.util.copiarCelular('${m.nombreDisplay.replace(/'/g, "\\'")}', this)">
+                                📋 ${metodo}<br><small>${datosPago.celular}</small>
+                               </button>`
+                            : `<span style="color:#aaa; font-size:0.8rem;">Sin nro.</span>`;
+
+                        const fila = document.createElement('tr');
+                        if (m.pagado) fila.classList.add('fila-pagada');
+                        fila.innerHTML = `
+                            <td>${m.nombreDisplay}</td>
+                            <td>${celdaPrecio}</td>
+                            <td>${celdaHoras}</td>
+                            <td>${celdaBolo || '-'}</td>
+                            <td><input type="number" step="0.01" class="input-tabla adelanto" value="${adelanto}" 
+                                onblur="App.calculos.actualizarCampo(${m.id}, 'adelantoDado', this.value)" 
+                                onkeypress="if(event.key === 'Enter') App.calculos.actualizarCampo(${m.id}, 'adelantoDado', this.value)"></td>
+                            <td style="font-weight: bold; color: ${m.pagado ? '#155724' : '#28a745'};">S/. ${neto.toFixed(2)}</td>
+                            <td style="text-align:center;">
+                                <input type="checkbox" class="check-pagado" ${m.pagado ? 'checked' : ''} 
+                                    onchange="App.calculos.togglePagado(${m.id})" title="Marcar como pagado">
+                            </td>
+                            <td>${celdaPagar}</td>`;
+                        tbody.appendChild(fila);
                     });
 
                     const c = App.estado.contratoActual;
@@ -909,22 +1021,21 @@ tbody.appendChild(fila);
                     const alertaFalta = document.getElementById('alerta-falta');
                     const montoFalta = document.getElementById('monto-falta');
                     if (faltaPagar > 0) {
-montoFalta.textContent = faltaPagar.toFixed(2);
-alertaFalta.style.display = 'block';
+                        montoFalta.textContent = faltaPagar.toFixed(2);
+                        alertaFalta.style.display = 'block';
                     } else {
-alertaFalta.style.display = 'none';
+                        alertaFalta.style.display = 'none';
                     }
 
-                    // ✅ Mensaje de verificación de saldo
                     let mensajeSaldo = '';
                     let colorMensaje = '';
                     if (saldoPendiente >= totalEgresos) {
-mensajeSaldo = '✅ El saldo disponible es suficiente para cubrir todos los pagos y movilidad';
-colorMensaje = '#28a745';
+                        mensajeSaldo = '✅ El saldo disponible es suficiente para cubrir todos los pagos y movilidad';
+                        colorMensaje = '#28a745';
                     } else {
-const montoFaltaMsg = (totalEgresos - saldoPendiente).toFixed(2);
-mensajeSaldo = `❌ Faltan S/. ${montoFaltaMsg} para cubrir pagos y movilidad`;
-colorMensaje = '#dc3545';
+                        const montoFaltaMsg = (totalEgresos - saldoPendiente).toFixed(2);
+                        mensajeSaldo = `❌ Faltan S/. ${montoFaltaMsg} para cubrir pagos y movilidad`;
+                        colorMensaje = '#dc3545';
                     }
 
                     const resumenDiv = document.getElementById('resumen-final');
@@ -944,8 +1055,6 @@ colorMensaje = '#dc3545';
         onkeypress="if(event.key === 'Enter') App.calculos.actualizarMovilidad(this.value)"> S/.
     </p>
     <p style="font-size: 1.1rem; font-weight: bold; margin-top: 8px;">Total general de egresos: S/. ${totalEgresos.toFixed(2)}</p>
-    
-    <!-- ✅ Mensaje de estado del saldo -->
     <p style="margin-top:12px; padding:8px; border-radius:4px; background:${colorMensaje}20; color:${colorMensaje}; font-weight:bold;">
         ${mensajeSaldo}
     </p>
@@ -982,30 +1091,30 @@ colorMensaje = '#dc3545';
 
                     const listaOrdenada = App.util.ordenarPorFechaEvento(App.estado.contratos);
                     if (listaOrdenada.length === 0) {
-lista.innerHTML = `<li class="recuadro">No hay compromisos guardados todavía</li>`;
-return;
+                        lista.innerHTML = `<li class="recuadro">No hay compromisos guardados todavía</li>`;
+                        return;
                     }
 
                     listaOrdenada.forEach((contrato, index) => {
-const fechaTexto = App.util.formatearFecha(contrato.datos.fechaContrato);
-const esPasado = App.util.esFechaPasada(contrato.datos.fechaContrato);
-const claseFecha = esPasado ? 'texto-vencido' : 'texto-activo';
+                        const fechaTexto = App.util.formatearFecha(contrato.datos.fechaContrato);
+                        const esPasado = App.util.esFechaPasada(contrato.datos.fechaContrato);
+                        const claseFecha = esPasado ? 'texto-vencido' : 'texto-activo';
 
-const item = document.createElement('li');
-item.className = 'item-contrato';
-item.innerHTML = `
-    <div class="contrato-info" onclick="App.controlador.editarContrato(${index})">
-        <span class="numero-lista">${index + 1}.</span>
-        <strong>${contrato.datos.nombre}</strong><br>
-        <span class="${claseFecha}">📅 ${fechaTexto}</span> | 
-        <span>⏰ ${App.util.formatearHorario(contrato.datos.horaInicio, contrato.datos.horaFin)}</span><br>
-        <span>Total: S/. ${((contrato.datos.precioHora * contrato.datos.horas) + contrato.datos.movilidadCliente).toFixed(2)}</span> |
-        <span>Ganancia: <strong style="color: #28a745;">S/. ${contrato.gananciaNeta.toFixed(2)}</strong></span>
-    </div>
-    <div class="contrato-acciones">
-        <button class="btn-eliminar" onclick="App.controlador.eliminarContrato(${index})">🗑️</button>
-    </div>`;
-lista.appendChild(item);
+                        const item = document.createElement('li');
+                        item.className = 'item-contrato';
+                        item.innerHTML = `
+                            <div class="contrato-info" onclick="App.controlador.editarContrato(${index})">
+                                <span class="numero-lista">${index + 1}.</span>
+                                <strong>${contrato.datos.nombre}</strong><br>
+                                <span class="${claseFecha}">📅 ${fechaTexto}</span> | 
+                                <span>⏰ ${App.util.formatearHorario(contrato.datos.horaInicio, contrato.datos.horaFin)}</span><br>
+                                <span>Total: S/. ${((contrato.datos.precioHora * contrato.datos.horas) + contrato.datos.movilidadCliente).toFixed(2)}</span> |
+                                <span>Ganancia: <strong style="color: #28a745;">S/. ${contrato.gananciaNeta.toFixed(2)}</strong></span>
+                            </div>
+                            <div class="contrato-acciones">
+                                <button class="btn-eliminar" onclick="App.controlador.eliminarContrato(${index})">🗑️</button>
+                            </div>`;
+                        lista.appendChild(item);
                     });
                 },
 
@@ -1018,63 +1127,48 @@ lista.appendChild(item);
                     let totalAnual = 0;
 
                     App.estado.contratos.forEach(contrato => {
-if (!contrato.datos.fechaContrato) return;
-const fecha = new Date(contrato.datos.fechaContrato);
-const mesAnio = fecha.toLocaleDateString('es-ES', { year: 'numeric', month: 'long' });
-if (!gananciasPorMes[mesAnio]) {
-    gananciasPorMes[mesAnio] = {
-        totalMes: 0,
-        cesarMes: 0,
-        lidiaMes: 0,
-        eventos: []
-    };
-}
-const gananciaEvento = contrato.gananciaNeta;
-gananciasPorMes[mesAnio].totalMes += gananciaEvento;
-gananciasPorMes[mesAnio].cesarMes += gananciaEvento / 2;
-gananciasPorMes[mesAnio].lidiaMes += gananciaEvento / 2;
-gananciasPorMes[mesAnio].eventos.push({
-    nombre: contrato.datos.nombre,
-    fecha: App.util.formatearFecha(contrato.datos.fechaContrato),
-    ganancia: gananciaEvento
-});
-totalAnual += gananciaEvento;
+                        if (!contrato.datos.fechaContrato) return;
+                        const fecha = new Date(contrato.datos.fechaContrato);
+                        const mesAnio = fecha.toLocaleDateString('es-ES', { year: 'numeric', month: 'long' });
+                        if (!gananciasPorMes[mesAnio]) {
+                            gananciasPorMes[mesAnio] = { totalMes: 0, cesarMes: 0, lidiaMes: 0, eventos: [] };
+                        }
+                        const gananciaEvento = contrato.gananciaNeta;
+                        gananciasPorMes[mesAnio].totalMes += gananciaEvento;
+                        gananciasPorMes[mesAnio].cesarMes += gananciaEvento / 2;
+                        gananciasPorMes[mesAnio].lidiaMes += gananciaEvento / 2;
+                        gananciasPorMes[mesAnio].eventos.push({
+                            nombre: contrato.datos.nombre,
+                            fecha: App.util.formatearFecha(contrato.datos.fechaContrato),
+                            ganancia: gananciaEvento
+                        });
+                        totalAnual += gananciaEvento;
                     });
 
-                    const mesesOrdenados = Object.keys(gananciasPorMes).sort((a, b) => {
-const fechaA = new Date(a);
-const fechaB = new Date(b);
-return fechaA - fechaB;
-                    });
+                    const mesesOrdenados = Object.keys(gananciasPorMes).sort((a, b) => new Date(a) - new Date(b));
 
                     mesesOrdenados.forEach((mes, indice) => {
-const datosMes = gananciasPorMes[mes];
-const idMes = `mes-${indice}`;
+                        const datosMes = gananciasPorMes[mes];
+                        const idMes = `mes-${indice}`;
 
-contenedor.innerHTML += `
-    <div class="titulo-mes" onclick="App.render.toggleMes('${idMes}')">
-        ${mes.toUpperCase()}
-        <span class="icono-desplegable" id="icono-${idMes}">▼</span>
-    </div>
-    <div class="contenedor-eventos" id="${idMes}">
-        <p class="monto-ganancia">GANANCIA TOTAL DEL MES: S/. ${datosMes.totalMes.toFixed(2)}</p>
-        <p style="color:#2563eb; font-weight:bold;">Parte de César: S/. ${datosMes.cesarMes.toFixed(2)}</p>
-        <p style="color:#db2777; font-weight:bold;">Parte de Lidia: S/. ${datosMes.lidiaMes.toFixed(2)}</p>
-        <hr style="margin:10px 0;">
-        <p style="font-weight:bold; margin-bottom:8px;">Detalles por compromiso:</p>`;
-
-datosMes.eventos.forEach(ev => {
-    contenedor.innerHTML += `
-        <div class="evento-item">
-            <strong>${ev.nombre}</strong> - ${ev.fecha}<br>
-            Ganancia: S/. ${ev.ganancia.toFixed(2)}
-            <div class="ganancia-socio">
-                César: S/. ${(ev.ganancia / 2).toFixed(2)} | Lidia: S/. ${(ev.ganancia / 2).toFixed(2)}
-            </div>
-        </div>`;
-});
-
-contenedor.innerHTML += `</div>`;
+                        contenedor.innerHTML += `
+                            <div class="titulo-mes" onclick="App.render.toggleMes('${idMes}')">
+                                ${mes.toUpperCase()}
+                                <span class="icono-desplegable" id="icono-${idMes}">▼</span>
+                            </div>
+                            <div class="contenedor-eventos" id="${idMes}">
+                                <p class="monto-ganancia">GANANCIA TOTAL DEL MES: S/. ${datosMes.totalMes.toFixed(2)}</p>
+                                <p style="color:#2563eb; font-weight:bold;">Parte de César: S/. ${datosMes.cesarMes.toFixed(2)}</p>
+                                <p style="color:#db2777; font-weight:bold;">Parte de Lidia: S/. ${datosMes.lidiaMes.toFixed(2)}</p>
+                                <hr style="margin:10px 0;">
+                                <p style="font-weight:bold; margin-bottom:8px;">Detalles por compromiso:</p>
+                                ${datosMes.eventos.map(ev => `
+                                    <div class="evento-item">
+                                        <strong>${ev.nombre}</strong> - ${ev.fecha}<br>
+                                        Ganancia: S/. ${ev.ganancia.toFixed(2)}
+                                        <div class="ganancia-socio">César: S/. ${(ev.ganancia / 2).toFixed(2)} | Lidia: S/. ${(ev.ganancia / 2).toFixed(2)}</div>
+                                    </div>`).join('')}
+                            </div>`;
                     });
 
                     contenedor.innerHTML += `<div class="total-anual">TOTAL ANUAL: S/. ${totalAnual.toFixed(2)}</div>`;
@@ -1084,11 +1178,11 @@ contenedor.innerHTML += `</div>`;
                     const contenedor = document.getElementById(idMes);
                     const icono = document.getElementById(`icono-${idMes}`);
                     if (contenedor.style.display === 'block') {
-contenedor.style.display = 'none';
-icono.textContent = '▼';
+                        contenedor.style.display = 'none';
+                        icono.textContent = '▼';
                     } else {
-contenedor.style.display = 'block';
-icono.textContent = '▲';
+                        contenedor.style.display = 'block';
+                        icono.textContent = '▲';
                     }
                 }
             },
@@ -1101,25 +1195,23 @@ icono.textContent = '▲';
                     let totalVigentes = 0;
 
                     App.estado.contratos.forEach(contrato => {
-const esPasado = App.util.esFechaPasada(contrato.datos.fechaContrato);
-const estadoTexto = esPasado ? '✅ Completado' : '⏳ Vigente';
-const claseEstado = esPasado ? 'texto-inactivo' : 'texto-activo';
-const fechaFirma = App.util.formatearFecha(contrato.datos.fechaFirma);
-const horario = App.util.formatearHorario(contrato.datos.horaInicio, contrato.datos.horaFin);
+                        const esPasado = App.util.esFechaPasada(contrato.datos.fechaContrato);
+                        const estadoTexto = esPasado ? '✅ Completado' : '⏳ Vigente';
+                        const claseEstado = esPasado ? 'texto-inactivo' : 'texto-activo';
+                        const fechaFirma = App.util.formatearFecha(contrato.datos.fechaFirma);
+                        const horario = App.util.formatearHorario(contrato.datos.horaInicio, contrato.datos.horaFin);
 
-const fila = document.createElement('tr');
-fila.className = claseEstado;
-fila.innerHTML = `
-    <td>${estadoTexto}</td>
-    <td>${fechaFirma}</td>
-    <td>${horario}</td>
-    <td>${contrato.datos.nombre}</td>
-    <td>S/. ${contrato.datos.adelantoCliente.toFixed(2)}</td>`;
-tbody.appendChild(fila);
+                        const fila = document.createElement('tr');
+                        fila.className = claseEstado;
+                        fila.innerHTML = `
+                            <td>${estadoTexto}</td>
+                            <td>${fechaFirma}</td>
+                            <td>${horario}</td>
+                            <td>${contrato.datos.nombre}</td>
+                            <td>S/. ${contrato.datos.adelantoCliente.toFixed(2)}</td>`;
+                        tbody.appendChild(fila);
 
-if (!esPasado) {
-    totalVigentes += contrato.datos.adelantoCliente;
-}
+                        if (!esPasado) totalVigentes += contrato.datos.adelantoCliente;
                     });
 
                     document.getElementById('total-adelantos-vigentes').textContent = totalVigentes.toFixed(2);
@@ -1147,43 +1239,33 @@ if (!esPasado) {
 
                     let y = 52;
                     doc.setFontSize(10);
-                    doc.text('Músico', 10, y);
-                    doc.text('Precio/h', 55, y);
-                    doc.text('Horas', 85, y);
-                    doc.text('Bolo', 105, y);
-                    doc.text('Adelanto', 125, y);
-                    doc.text('Neto', 145, y);
+                    doc.text('Músico', 10, y); doc.text('Precio/h', 55, y); doc.text('Horas', 85, y);
+                    doc.text('Bolo', 105, y); doc.text('Adelanto', 125, y); doc.text('Neto', 145, y);
                     y += 6;
 
                     App.estado.seleccionados.forEach(m => {
-const bruto = m.boloGlobal > 0 ? m.boloGlobal : m.tarifaHora * m.horasTocadas;
-const neto = bruto - m.adelantoDado;
-doc.text(m.nombreDisplay, 10, y);
-doc.text(m.tarifaHora > 0 ? `S/. ${m.tarifaHora.toFixed(2)}` : 'N/A', 55, y);
-doc.text(m.horasTocadas > 0 ? m.horasTocadas.toString() : 'N/A', 85, y);
-doc.text(m.boloGlobal > 0 ? `S/. ${m.boloGlobal.toFixed(2)}` : '-', 105, y);
-doc.text(`S/. ${m.adelantoDado.toFixed(2)}`, 125, y);
-doc.text(`S/. ${neto.toFixed(2)}`, 145, y);
-y += 6;
+                        const bruto = m.boloGlobal > 0 ? m.boloGlobal : m.tarifaHora * m.horasTocadas;
+                        const neto = bruto - m.adelantoDado;
+                        doc.text(m.nombreDisplay, 10, y);
+                        doc.text(m.tarifaHora > 0 ? `S/. ${m.tarifaHora.toFixed(2)}` : 'N/A', 55, y);
+                        doc.text(m.horasTocadas > 0 ? m.horasTocadas.toString() : 'N/A', 85, y);
+                        doc.text(m.boloGlobal > 0 ? `S/. ${m.boloGlobal.toFixed(2)}` : '-', 105, y);
+                        doc.text(`S/. ${m.adelantoDado.toFixed(2)}`, 125, y);
+                        doc.text(`S/. ${neto.toFixed(2)}`, 145, y);
+                        y += 6;
                     });
 
                     const totalContrato = (c.precioHora * c.horas) + c.movilidadCliente;
                     const totalBruto = App.estado.seleccionados.reduce((sum, m) => sum + (m.boloGlobal > 0 ? m.boloGlobal : m.tarifaHora * m.horasTocadas), 0);
-                    const totalEgresos = totalBruto + App.estado.gastoMovilidadReal;
                     const ganancia = App.calculos.calcularGananciaActual();
 
                     y += 4;
                     doc.setFontSize(12);
-                    doc.text('Resumen Económico', 10, y);
-                    y += 6;
-                    doc.text(`Total del contrato: S/. ${totalContrato.toFixed(2)}`, 10, y);
-                    y += 6;
-                    doc.text(`Adelanto recibido: S/. ${c.adelantoCliente.toFixed(2)}`, 10, y);
-                    y += 6;
-                    doc.text(`Total a personal: S/. ${totalBruto.toFixed(2)}`, 10, y);
-                    y += 6;
-                    doc.text(`Movilidad: S/. ${App.estado.gastoMovilidadReal.toFixed(2)}`, 10, y);
-                    y += 6;
+                    doc.text('Resumen Económico', 10, y); y += 6;
+                    doc.text(`Total del contrato: S/. ${totalContrato.toFixed(2)}`, 10, y); y += 6;
+                    doc.text(`Adelanto recibido: S/. ${c.adelantoCliente.toFixed(2)}`, 10, y); y += 6;
+                    doc.text(`Total a personal: S/. ${totalBruto.toFixed(2)}`, 10, y); y += 6;
+                    doc.text(`Movilidad: S/. ${App.estado.gastoMovilidadReal.toFixed(2)}`, 10, y); y += 6;
                     doc.text(`Ganancia neta: S/. ${ganancia.toFixed(2)}`, 10, y);
 
                     doc.save(`Presupuesto_${c.nombre.replace(/\s+/g, '_')}_${fechaActual.replace(/\//g, '-')}.pdf`);
