@@ -2,1278 +2,1283 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Presupuesto Bandas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <!-- ✅ PWA Meta Tags -->
+    <meta name="theme-color" content="#1a2f5e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BoloBand">
+    <meta name="application-name" content="BoloBand">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="logo.png">
+
+    <title>BoloBand</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body, html { height: 100%; font-family: 'Segoe UI', sans-serif; background-color: #f4f4f9; }
-        .pantalla { display: none; padding: 15px; text-align: center; min-height: 100vh; }
-        .pantalla.activa { display: block; }
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 
-        #splash-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #ffffff; color: #333;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 1000; transition: opacity 0.8s ease;
+    <style>
+        /* ── TOKENS BoloBand ── */
+        :root {
+            --bg:       #f0f2f6;
+            --surface:  #ffffff;
+            --border:   #dce3ef;
+            --accent:   #1a2f5e;
+            --blue:     #1a2f5e;
+            --copper:   #c9956a;
+            --copper-d: #a87650;
+            --green:    #16a34a;
+            --amber:    #d97706;
+            --red:      #dc2626;
+            --purple:   #7c3aed;
+            --yape:     #6f35a5;
+            --plin:     #00a8e0;
+            --text:     #1a2f5e;
+            --muted:    #64748b;
+            --r:        8px;
+            --rL:       12px;
+            --shadow:   0 1px 4px rgba(26,47,94,.09);
+            --shadowM:  0 4px 16px rgba(26,47,94,.15);
         }
-        #splash-screen h1 { margin: 5px 0; font-size: 2rem; text-transform: uppercase; }
+
+        /* ── RESET ── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif;
+                     background: var(--bg); color: var(--text); font-size: 14px; }
+
+        /* ── SPLASH BoloBand ── */
+        #splash-screen {
+            position: fixed; inset: 0;
+            background: linear-gradient(160deg, #1a2f5e 0%, #0f1e3d 100%);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center; gap: 2px;
+            z-index: 1000; transition: opacity .7s ease;
+        }
+        #splash-screen h1 {
+            color: #c9956a; font-size: 2.2rem; font-weight: 900;
+            letter-spacing: .08em; text-transform: uppercase;
+            text-shadow: 0 2px 8px rgba(201,149,106,.3);
+        }
+        #splash-screen .splash-sub {
+            color: rgba(255,255,255,.5); font-size: .72rem;
+            letter-spacing: .18em; text-transform: uppercase; margin-top: 20px;
+        }
         #splash-screen.oculto { opacity: 0; pointer-events: none; }
 
-        .recuadro {
-            background: white; padding: 15px; border: 1px solid #ddd; border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-            display: inline-block; width: 100%; max-width: 400px;
-            margin-bottom: 12px;
+        /* ── PANTALLAS ── */
+        .pantalla { display: none; padding: 12px 12px 80px; min-height: 100vh; }
+        .pantalla.activa { display: block; }
+
+        /* ── TIPOGRAFÍA ── */
+        h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; color: var(--accent); letter-spacing: -.01em; }
+        h3 { font-size: .95rem; font-weight: 700; }
+        .titulo-pantalla-evento {
+            text-align: center; margin-bottom: 14px;
+        }
+        .titulo-pantalla-evento .nombre-contrato {
+            font-size: 1.35rem; font-weight: 800; color: var(--copper);
+            letter-spacing: -.01em; line-height: 1.2;
+        }
+        .titulo-pantalla-evento .sub-resumen {
+            font-size: .78rem; font-weight: 500; color: var(--muted);
+            letter-spacing: .08em; text-transform: uppercase; margin-top: 3px;
         }
 
-        .recuadro-grande { max-width: 700px; }
-        .recuadro-caja { background: #e3f2fd; border: 2px solid #007bff; }
-        .recuadro-ganancia { background: #f0fff4; border: 2px solid #28a745; padding: 12px; }
-        .recuadro-total-pagar { background: #fffbeb; border: 2px solid #f59e0b; margin: 10px 0; padding: 10px; }
-        .recuadro-final-personal { background: #eff6ff; border: 2px solid #3b82f6; margin-top: 12px; padding: 12px; }
-        .recuadro-saldo { background: #e3f2fd; border: 2px solid #007bff; margin: 10px 0; padding: 15px; }
-        .recuadro-egresos { background: #fffbeb; border: 2px solid #f59e0b; margin: 10px 0; padding: 15px; }
-        .alerta-falta { background: #fee2e2; border: 2px solid #dc2626; margin: 10px 0; padding: 12px; color: #dc2626; font-weight: bold; border-radius: 6px; display: none; }
-
-        .grid-integrantes {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 12px; padding: 15px 0; padding-bottom: 80px;
+        /* ── CARDS / RECUADROS ── */
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--rL); box-shadow: var(--shadow);
+            padding: 12px; margin-bottom: 10px; width: 100%;
         }
+        .card-blue  { background: #eaeff8; border-color: #b8c8e8; }
+        .card-green { background: #f0fdf4; border-color: #bbf7d0; }
+        .card-amber { background: #fffbeb; border-color: #fde68a; }
+        .card-red   { background: #fef2f2; border-color: #fecaca; }
 
-        #btn-flotante {
-            position: fixed; bottom: 15px; right: 15px;
-            padding: 12px 22px; background: #28a745; color: white;
-            border: none; border-radius: 50px; cursor: pointer;
-            font-size: 15px; box-shadow: 0 3px 8px rgba(0,0,0,0.25); z-index: 999;
+        /* ── FORMS ── */
+        input, select {
+            padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--r);
+            width: 100%; margin-bottom: 8px; font-size: 14px;
+            background: var(--surface); color: var(--text); outline: none;
+            transition: border-color .15s;
         }
+        input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+        input[type="time"] { max-width: 150px; }
+        input[type="file"] { padding: 6px; font-size: 13px; }
+        input[type="checkbox"] { width: auto; margin-bottom: 0; }
 
-        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; margin-bottom: 10px; font-size: 15px; }
-        input[type="time"] { max-width: 160px; }
-        .grupo-horas { display: flex; gap: 12px; justify-content: space-between; }
+        label.field-label {
+            display: block; font-size: .78rem; color: var(--muted);
+            margin-bottom: 3px; font-weight: 600; letter-spacing: .02em;
+        }
+        .moneda-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+        .moneda-row input { margin-bottom: 0; }
+        .moneda-tag { font-weight: 700; font-size: .9rem; color: var(--muted); white-space: nowrap; }
+
+        .grupo-horas { display: flex; gap: 10px; }
         .campo-hora { flex: 1; }
-
-        button { padding: 9px 16px; cursor: pointer; background: #333; color: white; border: none; border-radius: 5px; margin: 4px; font-size: 14px; }
-        .btn-atras { background: #6c757d; }
-        .btn-pdf { background: #dc3545; }
-        .btn-eliminar { background: #dc3545; padding: 5px 9px; font-size: 13px; }
-        .btn-staff-principal { background: #ff9800; }
-        .btn-resumen { background: #6f42c1; color: white; margin-bottom: 12px; }
-        .moneda-input { display:flex; align-items:center; gap:5px; margin-bottom: 10px; }
-        .moneda-input input { margin-bottom: 0; }
-        .moneda-input span { font-weight: bold; font-size: 1rem; }
-
-        .tabla-contenedor { overflow-x: auto; margin: 15px auto; }
-        table { border-collapse: collapse; width: 100%; background: white; box-shadow: 0 1px 4px rgba(0,0,0,0.05); font-size: 0.9rem; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-        th { background-color: #f2f2f2; font-weight: 600; }
-        .tabla-excel { margin-bottom: 18px; }
-
-        .input-tabla {
-            width: 70px; padding: 5px; border-radius: 4px; border: 1px solid #ccc;
-            font-weight: bold; text-align: center; font-size: 0.9rem;
+        @media (max-width: 400px) {
+            .grupo-horas { flex-direction: column; }
+            input[type="time"] { max-width: 100%; }
         }
-        .input-tabla:focus { outline: none; border-color: #007bff; }
-        .input-tabla.gasto { border-color: #28a745; }
-        .input-tabla.adelanto { border-color: #007bff; color: #007bff; }
-        .input-tabla.tarifa { border-color: #ff9800; color: #e65100; width: 65px; }
-        .input-tabla.horas { border-color: #ff9800; color: #e65100; width: 50px; }
-        .input-tabla.bolo { border-color: #9c27b0; color: #7b1fa2; width: 75px; }
-        .texto-inactivo { color: #aaa; text-decoration: line-through; font-size: 0.8rem; }
 
-        /* ✅ NUEVO: Fila pagada */
-        tr.fila-pagada td { background-color: #d4edda !important; color: #155724; }
-        tr.fila-pagada td:last-child { font-weight: bold; color: #155724 !important; }
+        /* ── BOTONES ── */
+        button {
+            padding: 8px 14px; cursor: pointer; font-size: 13px; font-weight: 600;
+            border: none; border-radius: var(--r); transition: filter .15s, transform .1s;
+            background: var(--accent); color: #fff; margin: 3px;
+        }
+        button:active { transform: scale(.97); }
+        button:hover  { filter: brightness(1.12); }
+
+        .btn-back   { background: #64748b; }
+        .btn-danger { background: var(--red); }
+        .btn-green  { background: var(--green); }
+        .btn-amber  { background: var(--copper); color: #fff; }
+        .btn-purple { background: var(--purple); }
+        .btn-blue   { background: var(--accent); }
+        .btn-copper { background: var(--copper); color: #fff; }
+        .btn-sm     { padding: 5px 10px; font-size: 12px; }
+        .btn-xs     { padding: 3px 7px; font-size: 11px; }
+
+        /* Floating save */
+        #btn-flotante {
+            position: fixed; bottom: 16px; right: 16px;
+            padding: 12px 22px; background: var(--copper); border-radius: 50px;
+            font-size: 14px; box-shadow: 0 4px 14px rgba(201,149,106,.45); z-index: 999;
+        }
+
+        /* ── GRID STAFF ── */
+        .grid-staff {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+            gap: 10px; padding-bottom: 80px;
+        }
+        .staff-card { background: var(--surface); border: 1px solid var(--border);
+                      border-radius: var(--rL); padding: 10px; }
+        .staff-card strong { font-size: .8rem; color: var(--muted); display: block; margin-bottom: 6px; }
+        .staff-metodo-row { display: flex; gap: 6px; align-items: center; }
+        .staff-metodo-row select { margin-bottom: 0; font-size: 12px; padding: 6px 8px; }
+
+        /* ── TABLA RESULTADOS ── */
+        .tabla-wrap { overflow-x: auto; margin: 8px 0; -webkit-overflow-scrolling: touch; }
+        table { border-collapse: collapse; width: 100%; font-size: .82rem; background: var(--surface); }
+        th, td { border: 1px solid var(--border); padding: 6px 7px; text-align: center; vertical-align: middle; }
+        th { background: #f8fafc; font-weight: 700; font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+        tr.fila-pagada td { background: #dcfce7; }
+
+        /* inputs dentro de tabla */
+        .it { width: 58px; padding: 4px; border: 1px solid #ddd; border-radius: 5px;
+              font-size: .82rem; text-align: center; font-weight: 600; }
+        .it.tarifa { border-color: var(--amber); color: #92400e; }
+        .it.horas  { border-color: var(--amber); color: #92400e; width: 44px; }
+        .it.bolo   { border-color: var(--purple); color: #5b21b6; width: 68px; }
+        .it.adelanto { border-color: var(--blue); color: var(--blue); }
+        .it:focus { outline: none; border-color: var(--blue); }
+
+        .check-pagado { width: 16px; height: 16px; cursor: pointer; accent-color: var(--green); border-radius: 4px; }
+
         .btn-pagar {
-            background: #28a745; color: white; border: none; border-radius: 4px;
-            padding: 4px 8px; font-size: 12px; cursor: pointer; margin-left: 4px;
-            white-space: nowrap;
+            display: inline-flex; flex-direction: column; align-items: center;
+            padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;
+            border: none; cursor: pointer; line-height: 1.3; white-space: nowrap;
+            transition: filter .15s;
         }
-        .btn-pagar:hover { background: #1e7e34; }
-        .btn-pagar.yape { background: #6f35a5; }
-        .btn-pagar.yape:hover { background: #5a2a8a; }
-        .btn-pagar.plin { background: #00a8e0; }
-        .btn-pagar.plin:hover { background: #0087b8; }
-        .check-pagado { width: 18px; height: 18px; cursor: pointer; accent-color: #28a745; }
+        .btn-pagar.yape { background: var(--yape); color: #fff; }
+        .btn-pagar.plin { background: var(--plin); color: #fff; }
+        .btn-pagar.sin-nro { background: #e5e7eb; color: var(--muted); font-weight: 500; }
+        .btn-pagar:hover { filter: brightness(1.1); }
 
-        .lista-contratos { list-style: none; padding: 0; max-width: 600px; margin: 15px auto; }
+        /* ── HISTORIAL ── */
+        .lista-contratos { list-style: none; padding: 0; }
         .item-contrato {
-            background: white; padding: 14px; margin-bottom: 10px; border-radius: 8px;
-            border-left: 4px solid #333; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-            display: flex; justify-content: space-between; align-items: center; gap: 10px;
+            background: var(--surface); padding: 11px 13px; margin-bottom: 8px;
+            border-radius: var(--rL); border-left: 3px solid var(--copper);
+            box-shadow: var(--shadow);
+            display: flex; justify-content: space-between; align-items: center; gap: 8px;
         }
-        .item-contrato:hover { background: #f8f9fa; }
-        .contrato-info { flex: 1; text-align: left; cursor: pointer; font-size: 0.9rem; }
-        .contrato-acciones { display: flex; gap: 8px; }
-        .numero-lista { color: #6c757d; margin-right: 6px; font-weight: bold; }
+        .contrato-info { flex: 1; text-align: left; cursor: pointer; line-height: 1.55; }
+        .contrato-info strong { font-size: .95rem; }
+        .contrato-info span { font-size: .8rem; color: var(--muted); }
+        .texto-vencido { color: #9ca3af; text-decoration: line-through; text-decoration-thickness: 2px; }
+        .item-contrato.pasado .contrato-info strong,
+        .item-contrato.pasado .contrato-info span {
+            text-decoration: line-through;
+            text-decoration-thickness: 2px;
+            color: #9ca3af;
+        }
+        .texto-activo  { color: var(--green); font-weight: 700; }
+        .ver-contrato-btn {
+            font-size: 11px; padding: 4px 9px; background: var(--blue);
+            color: #fff; border-radius: 6px; text-decoration: none; display: inline-block;
+            margin-top: 4px; border: none; cursor: pointer;
+        }
 
-        .resumen-box { text-align: left; font-size: 0.95rem; line-height: 1.5; }
-        .resumen-box p { margin: 8px 0; }
-        .alerta { padding: 10px; border-radius: 6px; margin: 10px 0; font-weight: bold; text-align: center; font-size: 0.9rem; }
-        .alerta.roja { background: #fff5f5; color: #c53030; border-left: 3px solid #c53030; }
-        .alerta.verde { background: #f0fff4; color: #2f855a; border-left: 3px solid #2f855a; }
-        
-        .titulo-mes { 
-            background-color: #e3f2fd; padding: 12px; border-radius: 6px; 
-            font-weight: bold; margin: 18px 0 10px 0; text-align: left; 
-            font-size: 1.1rem; color: #004085;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: background 0.2s;
+        /* ── ALERTAS ── */
+        .alerta-falta {
+            display: none; background: #fef2f2; border: 1px solid #fecaca;
+            color: var(--red); font-weight: 700; border-radius: var(--r);
+            padding: 9px 12px; margin: 8px 0; font-size: .85rem;
         }
-        .titulo-mes:hover { background-color: #d7e8fc; }
-        .icono-desplegable { font-size: 1rem; transition: transform 0.3s; }
+        .badge-ok  { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; border-radius: var(--r); padding: 7px 10px; font-size: .82rem; font-weight: 600; }
+        .badge-err { background: #fef2f2; color: var(--red); border: 1px solid #fecaca; border-radius: var(--r); padding: 7px 10px; font-size: .82rem; font-weight: 600; }
+
+        /* ── RESUMEN FINANCIERO ── */
+        .titulo-mes {
+            background: #f5ede6; padding: 10px 12px; border-radius: var(--r);
+            font-weight: 700; font-size: .88rem; color: var(--accent);
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            margin: 12px 0 4px; border-left: 3px solid var(--copper);
+        }
+        .titulo-mes:hover { background: #eeddd0; }
         .contenedor-eventos {
-            display: none;
-            margin: 0 0 15px 15px;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            border-left: 2px solid #007bff;
+            display: none; margin: 0 0 10px 10px; padding: 10px;
+            background: #f8fafc; border-radius: var(--r);
+            border-left: 2px solid var(--blue);
         }
-        .evento-item {
-            padding: 8px;
-            margin: 5px 0;
-            border-bottom: 1px dashed #dee2e6;
-            text-align: left;
-            font-size: 0.9rem;
-        }
+        .evento-item { padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: .83rem; text-align: left; }
         .evento-item:last-child { border-bottom: none; }
-        .ganancia-socio {
-            font-size: 0.85rem;
-            color: #28a745;
-            margin-top: 4px;
+        .ganancia-socio { font-size: .78rem; color: var(--green); margin-top: 2px; }
+        .total-anual {
+            font-size: 1.1rem; font-weight: 800; color: #14532d;
+            text-align: right; margin-top: 16px; padding: 12px;
+            background: #dcfce7; border-radius: var(--r); border-top: 2px solid var(--green);
         }
-        .texto-vencido { color: #6c757d; text-decoration: line-through; }
-        .texto-activo { font-weight: bold; color: #28a745; }
-        .nota { color: #555; font-size: 0.85rem; margin: 8px 0 15px 0; text-align: left; }
-        .total-texto { font-size: 1.1rem; font-weight: bold; text-align: right; margin: 15px 5px; }
-        .monto-ganancia { font-size: 1.3rem; font-weight: bold; color: #28a745; text-align: center; margin: 10px 0; }
+        .monto-ganancia { font-size: 1.1rem; font-weight: 800; color: var(--green); margin: 6px 0; }
 
+        /* ── AUTOCOMPLETE ── */
         .autocomplete-container { position: relative; width: 100%; }
         .autocomplete-list {
             position: absolute; top: 100%; left: 0; right: 0;
-            background: white; border: 1px solid #ddd; border-top: none;
-            border-radius: 0 0 5px 5px; max-height: 130px; overflow-y: auto;
-            z-index: 100; box-shadow: 0 3px 5px rgba(0,0,0,0.1);
-            display: none;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 0 0 var(--r) var(--r);
+            max-height: 130px; overflow-y: auto; z-index: 200;
+            box-shadow: var(--shadowM); display: none;
         }
-        .autocomplete-item {
-            padding: 8px; cursor: pointer; text-align: left;
-            border-bottom: 1px solid #f0f0f0; font-size: 0.9rem;
-        }
-        .autocomplete-item:hover { background-color: #e3f2fd; }
+        .autocomplete-item { padding: 8px 10px; cursor: pointer; font-size: .85rem; border-bottom: 1px solid var(--border); }
+        .autocomplete-item:hover { background: #eff6ff; }
 
-        .campo-movilidad-editable {
-            width: 120px; padding: 4px 6px; border: 1px solid #f59e0b;
-            border-radius: 4px; font-weight: bold; text-align: right;
-            font-size: 0.95rem; background-color: #fffbeb;
+        /* ── MOVILIDAD EDITABLE ── */
+        .mov-input {
+            width: 110px; padding: 4px 8px; border: 1px solid var(--amber);
+            border-radius: var(--r); font-weight: 700; text-align: right; font-size: .9rem;
+            background: #fffbeb;
         }
-        .campo-movilidad-editable:focus {
-            outline: none; border-color: #d97706; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
-        }
+        .mov-input:focus { outline: none; border-color: var(--amber); }
 
-        .divicion-ganancia {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin: 12px 0 0 0;
-        }
-        .parte-césar { 
-            background: #dbeafe; padding: 15px; border-radius: 6px; 
-            border-left: 3px solid #2563eb; text-align: center; font-size: 0.9rem;
-        }
-        .parte-lidia { 
-            background: #fce7f3; padding: 15px; border-radius: 6px; 
-            border-left: 3px solid #db2777; text-align: center; font-size: 0.9rem;
-        }
-        .total-final-personal { 
-            font-size: 1.2rem; font-weight: bold; margin-top: 10px; 
-            display: block;
-        }
-        .lista-ganancias { list-style: none; padding: 0 0 0 8px; margin: 0 0 10px 0; font-size: 0.9rem; }
-        .item-ganancia { padding: 6px 0; border-bottom: 1px dashed #eee; }
-        .total-mes { 
-            font-size: 1.2rem; font-weight: bold; color: #28a745; text-align: right; 
-            margin: 10px 0; padding: 10px; background: #f8fff9; border-radius: 6px;
-            border-top: 2px solid #28a745;
-        }
-        .total-anual { 
-            font-size: 1.4rem; font-weight: bold; color: #155724; text-align: right; 
-            margin-top: 20px; padding: 15px; background: #e8f5e9; border-radius: 8px; 
-            border-top: 3px solid #28a745;
-        }
+        /* ── GANANCIA SPLIT ── */
+        .split-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .split-cesar { background: #f5ede6; border-left: 3px solid var(--copper); border-radius: var(--r); padding: 10px; font-size: .82rem; text-align: center; }
+        .split-lidia { background: #fdf2f8; border-left: 3px solid #db2777; border-radius: var(--r); padding: 10px; font-size: .82rem; text-align: center; }
+        .split-total { font-size: 1.05rem; font-weight: 800; display: block; margin-top: 6px; }
+        @media (max-width: 400px) { .split-grid { grid-template-columns: 1fr; } }
 
-        /* ✅ NUEVO: estilos staff con celular y método de pago */
-        .staff-metodo-pago {
-            display: flex; gap: 6px; margin-bottom: 10px; align-items: center;
-        }
-        .staff-metodo-pago select {
-            margin-bottom: 0; padding: 8px; font-size: 13px;
-        }
-        .badge-yape {
-            background: #6f35a5; color: white; padding: 2px 8px;
-            border-radius: 12px; font-size: 0.75rem; font-weight: bold;
-        }
-        .badge-plin {
-            background: #00a8e0; color: white; padding: 2px 8px;
-            border-radius: 12px; font-size: 0.75rem; font-weight: bold;
-        }
+        /* ── NOTA / SUBTEXTO ── */
+        .nota { color: var(--muted); font-size: .78rem; margin: 4px 0 10px; }
+        .total-texto { font-size: .95rem; font-weight: 700; text-align: right; margin: 10px 4px; }
 
-        @media (max-width: 480px) {
-            .grupo-horas { flex-direction: column; gap: 0; }
-            input[type="time"] { max-width: 100%; }
-            .divicion-ganancia { grid-template-columns: 1fr; }
-        }
+        /* ── UPLOAD CONTRATO ── */
+        .upload-box { border: 2px dashed var(--border); border-radius: var(--rL); padding: 14px; text-align: center; }
+        .upload-box p { font-size: .82rem; color: var(--muted); margin-bottom: 8px; }
+        .upload-progress { font-size: .8rem; color: var(--blue); margin-top: 6px; display: none; }
+
+        /* ── MISC ── */
+        .icono-desplegable { font-size: .85rem; }
+        .numero-lista { color: var(--muted); margin-right: 5px; font-weight: 700; }
+        hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+        small { font-size: .76rem; color: var(--muted); }
     </style>
 </head>
 <body>
 
-    <div id="splash-screen">
-        <h1>Tabla</h1><h1>de</h1><h1>Presupuesto</h1><h1>para</h1><h1>Bandas</h1>
+<!-- SPLASH -->
+<div id="splash-screen">
+    <img src="logo.png" alt="BoloBand" style="width:140px;height:140px;border-radius:28px;box-shadow:0 8px 32px rgba(0,0,0,.35);margin-bottom:20px;">
+    <h1 style="color:#c9956a;font-size:2rem;font-weight:900;letter-spacing:.06em;">BoloBand</h1>
+    <span class="splash-sub">Presupuestos para grupos musicales</span>
+</div>
+
+<!-- P1: NOMBRE AGRUPACIÓN -->
+<div id="pantalla-nombre" class="pantalla">
+    <div class="card" style="max-width:380px;margin:40px auto 0;">
+        <h3 style="margin-bottom:10px;">🎵 Nombre de la Agrupación</h3>
+        <input type="text" id="input-nombre-agrupacion" placeholder="Ej: La Revelación del Callao">
+        <button onclick="App.controlador.iniciarAgrupacion()" style="width:100%;margin-top:4px;">Continuar →</button>
     </div>
+</div>
 
-    <div id="pantalla-nombre" class="pantalla">
-        <div class="recuadro">
-            <h3>Nombre de la Agrupación</h3>
-            <input type="text" id="input-nombre-agrupacion" placeholder="Ej: La Revelación del Callao">
-            <br><button onclick="App.controlador.iniciarAgrupacion()">Continuar</button>
-        </div>
+<!-- P2: STAFF -->
+<div id="pantalla-staff" class="pantalla">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+        <button class="btn-back btn-sm" onclick="App.navegacion.volverStaff()">⬅ Atrás</button>
+        <h2 id="titulo-staff" style="margin:0;">Staff</h2>
     </div>
+    <p class="nota">*Registra también a César y Lidia con su tarifa por hora, celular y método de pago.</p>
+    <div id="grid-staff" class="grid-staff"></div>
+    <button id="btn-flotante" onclick="App.controlador.guardarStaff()">💾 Guardar Staff</button>
+</div>
 
-    <div id="pantalla-staff" class="pantalla">
-        <h2 id="titulo-staff">Lista de Integrantes</h2>
-        <p style="color:#666; margin-bottom:12px; font-size:0.9rem;">*Registra aquí también a César y Lidia con su tarifa por hora</p>
-        <button class="btn-atras" onclick="App.navegacion.volverStaff()">⬅️ Atrás</button>
-        <div id="grid-staff" class="grid-integrantes"></div>
-        <button id="btn-flotante" onclick="App.controlador.guardarStaff()">Guardar Staff</button>
+<!-- P3: TRANSICIÓN -->
+<div id="pantalla-transicion" class="pantalla">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;gap:4px;">
+        <h1 style="font-size:2rem;font-weight:800;color:var(--accent);">Empecemos</h1>
+        <h1 style="font-size:2rem;font-weight:800;color:var(--accent);">a crear tu</h1>
+        <h1 style="font-size:2rem;font-weight:800;color:var(--accent);">presupuesto</h1>
     </div>
+</div>
 
-    <div id="pantalla-transicion" class="pantalla">
-        <div style="margin-top: 20vh;"><h1>Empecemos a</h1><h1>crear tu</h1><h1>presupuesto</h1></div>
+<!-- P4: CONTRATO -->
+<div id="pantalla-contrato" class="pantalla">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <button class="btn-back btn-sm" onclick="App.navegacion.irA('pantalla-staff')">⬅ Atrás</button>
+        <h2 id="titulo-contrato" style="margin:0;">Datos del Compromiso</h2>
     </div>
+    <div class="card" style="max-width:440px;margin:0 auto;">
+        <input type="text" id="input-nombre-contrato" placeholder="Nombre del Compromiso">
 
-    <div id="pantalla-contrato" class="pantalla">
-        <h2 id="titulo-contrato">Datos del Compromiso</h2>
-        <button class="btn-atras" onclick="App.navegacion.irA('pantalla-staff')">⬅️ Atrás</button>
-        <div class="recuadro">
-            <input type="text" id="input-nombre-contrato" placeholder="Nombre del Compromiso">
-            
-            <label style="text-align:left; display:block; margin-bottom:4px; font-size:0.85rem; color:#555;">📅 Fecha de firma de contrato</label>
-            <input type="date" id="input-fecha-firma">
-            
-            <label style="text-align:left; display:block; margin-bottom:4px; font-size:0.85rem; color:#555;">📅 Fecha del evento</label>
-            <input type="date" id="input-fecha-contrato">
+        <label class="field-label">📅 Fecha de firma</label>
+        <input type="date" id="input-fecha-firma">
 
-            <label style="text-align:left; display:block; margin-bottom:4px; font-size:0.85rem; color:#555;">⏰ Horario del evento</label>
-            <div class="grupo-horas">
-                <div class="campo-hora">
-                    <label style="font-size:0.8rem; color:#666;">Hora de inicio</label>
-                    <input type="time" id="input-hora-inicio" placeholder="00:00">
-                </div>
-                <div class="campo-hora">
-                    <label style="font-size:0.8rem; color:#666;">Hora de término</label>
-                    <input type="time" id="input-hora-fin" placeholder="00:00">
-                </div>
+        <label class="field-label">📅 Fecha del evento</label>
+        <input type="date" id="input-fecha-contrato">
+
+        <label class="field-label">⏰ Horario del evento</label>
+        <div class="grupo-horas">
+            <div class="campo-hora">
+                <label class="field-label">Inicio</label>
+                <input type="time" id="input-hora-inicio">
             </div>
-
-            <input type="number" id="input-horas" placeholder="Cantidad de Horas" min="0" step="0.5">
-            <input type="number" id="input-cant-integrantes" placeholder="Cantidad de Integrantes" min="1">
-            <div class="moneda-input"><input type="number" step="0.01" id="input-precio-hora" placeholder="Precio por Hora de Banda"><span>S/.</span></div>
-            <div class="moneda-input"><input type="number" step="0.01" id="input-movilidad" placeholder="Movilidad de Cliente"><span>S/.</span></div>
-            <div class="moneda-input"><input type="number" step="0.01" id="input-adelanto-cliente" placeholder="Adelanto cobrado"><span>S/.</span></div>
-            
-            <button class="btn-atras" onclick="App.navegacion.irA('pantalla-staff')">⬅️ Atrás</button>
-            <button onclick="App.controlador.guardarDatosContrato()">Continuar</button>
+            <div class="campo-hora">
+                <label class="field-label">Término</label>
+                <input type="time" id="input-hora-fin">
+            </div>
         </div>
+
+        <input type="number" id="input-horas" placeholder="Cantidad de Horas" min="0" step="0.5">
+        <input type="number" id="input-cant-integrantes" placeholder="Cantidad de Integrantes" min="1">
+
+        <label class="field-label">Precio por hora de banda</label>
+        <div class="moneda-row">
+            <input type="number" step="0.01" id="input-precio-hora">
+            <span class="moneda-tag">S/.</span>
+        </div>
+
+        <label class="field-label">Movilidad del cliente</label>
+        <div class="moneda-row">
+            <input type="number" step="0.01" id="input-movilidad">
+            <span class="moneda-tag">S/.</span>
+        </div>
+
+        <label class="field-label">Adelanto cobrado</label>
+        <div class="moneda-row">
+            <input type="number" step="0.01" id="input-adelanto-cliente">
+            <span class="moneda-tag">S/.</span>
+        </div>
+
+        <button onclick="App.controlador.guardarDatosContrato()" style="width:100%;margin-top:4px;">Continuar →</button>
+    </div>
+</div>
+
+<!-- P5: SELECCIÓN -->
+<div id="pantalla-seleccion" class="pantalla">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <button class="btn-back btn-sm" onclick="App.navegacion.irA('pantalla-contrato')">⬅ Corregir</button>
+        <h2 style="margin:0;">Seleccionar Integrantes</h2>
+    </div>
+    <div class="tabla-wrap">
+        <table>
+            <thead><tr><th>N°</th><th>Nombre del Músico</th></tr></thead>
+            <tbody id="tabla-seleccion-body"></tbody>
+        </table>
+    </div>
+    <button onclick="App.controlador.confirmarSeleccion()" class="btn-green" style="margin-top:8px;">Continuar →</button>
+</div>
+
+<!-- P6: RESULTADOS -->
+<div id="pantalla-resultados" class="pantalla">
+
+    <!-- Encabezado dinámico del contrato -->
+    <div class="titulo-pantalla-evento" id="header-contrato-activo">
+        <div class="nombre-contrato" id="label-nombre-contrato">—</div>
+        <div class="sub-resumen">Resumen de presupuesto</div>
     </div>
 
-    <div id="pantalla-seleccion" class="pantalla">
-        <h2>Seleccionar Integrantes</h2>
-        <button class="btn-atras" onclick="App.navegacion.irA('pantalla-contrato')">⬅️ Corregir</button>
-        <div class="tabla-contenedor">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+        <button class="btn-back btn-sm" onclick="App.navegacion.irA('pantalla-seleccion')">⬅ Corregir</button>
+        <button class="btn-danger btn-sm" onclick="App.pdf.exportar()">📄 PDF</button>
+    </div>
+
+    <div class="tabla-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Músico</th><th>S//h</th><th>Hrs</th><th>Bolo</th>
+                    <th>Adelanto</th><th>Neto</th><th>✓</th><th>Pagar</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-resultados-body"></tbody>
+        </table>
+    </div>
+
+    <div id="alerta-falta" class="alerta-falta">⚠️ Faltan S/. <span id="monto-falta">0.00</span> para cubrir todos los pagos</div>
+
+    <div id="resumen-final"></div>
+
+    <!-- ✅ DOCUMENTACIÓN DEL CONTRATO (FIREBASE STORAGE) -->
+    <div class="card" style="margin-top:10px;">
+        <h3 style="margin-bottom:8px;">📄 Documentación del Contrato</h3>
+        <div class="upload-box">
+            <p>Sube la foto o PDF del contrato físico</p>
+            <input type="file" id="input-archivo-contrato" accept="image/*,application/pdf">
+            <button class="btn-blue btn-sm" style="margin-top:8px;" onclick="App.storage.subirContrato()">⬆️ Subir archivo</button>
+            <div class="upload-progress" id="upload-progress">Subiendo...</div>
+        </div>
+        <div id="link-contrato-guardado" style="margin-top:8px;"></div>
+    </div>
+
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="btn-accion-principal" onclick="App.controlador.accionPrincipal()" class="btn-green"></button>
+    </div>
+</div>
+
+<!-- P7: HISTORIAL -->
+<div id="pantalla-historial" class="pantalla">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+        <h2 id="titulo-historial" style="margin:0;">Contratos</h2>
+        <button class="btn-copper btn-sm" onclick="App.navegacion.irA('pantalla-resumen-financiero')">💰 Ganancias</button>
+    </div>
+    <ul id="lista-contratos" class="lista-contratos"></ul>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-green" onclick="App.controlador.nuevoContrato()">➕ Nuevo Contrato</button>
+        <button class="btn-amber" onclick="App.controlador.editarStaff()">👥 Editar Staff</button>
+    </div>
+</div>
+
+<!-- P8: RESUMEN FINANCIERO -->
+<div id="pantalla-resumen-financiero" class="pantalla">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+        <button class="btn-back btn-sm" onclick="App.navegacion.irA('pantalla-historial')">⬅ Contratos</button>
+        <h2 style="margin:0;">💰 Resumen de Ganancias</h2>
+    </div>
+    <button class="btn-blue btn-sm" style="margin-bottom:10px;" onclick="App.navegacion.irA('pantalla-adelantos')">📋 Detalle de Adelantos</button>
+
+    <div class="card card-blue" style="text-align:center;padding:14px;">
+        <p style="font-size:.75rem;font-weight:700;color:#1d4ed8;letter-spacing:.05em;text-transform:uppercase;">💵 Total en Caja</p>
+        <p style="font-size:.75rem;color:var(--muted);">Adelantos de eventos futuros</p>
+        <h2 id="total-caja-fecha" style="font-size:1.8rem;font-weight:800;color:#1d4ed8;margin:6px 0;">S/. 0.00</h2>
+    </div>
+
+    <div class="card card-green" style="padding:14px;">
+        <h3 style="color:#15803d;margin-bottom:6px;">📊 Ganancias Netas por Mes</h3>
+        <p class="nota">Total general para el negocio</p>
+        <div id="contenedor-ganancias-mensuales"></div>
+    </div>
+</div>
+
+<!-- P9: ADELANTOS -->
+<div id="pantalla-adelantos" class="pantalla">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <button class="btn-back btn-sm" onclick="App.navegacion.irA('pantalla-resumen-financiero')">⬅ Volver</button>
+        <h2 style="margin:0;">📋 Dinero Real</h2>
+    </div>
+
+    <div class="card card-blue" style="text-align:center;padding:14px;">
+        <p style="font-size:.75rem;font-weight:700;color:#1d4ed8;letter-spacing:.05em;text-transform:uppercase;">💵 Total en Caja a la Fecha</p>
+        <p class="nota">Al día siguiente del evento, ese dinero deja de contarse</p>
+        <h2 id="total-caja-adelantos" style="font-size:1.9rem;font-weight:800;color:#1d4ed8;margin:8px 0;">S/. 0.00</h2>
+    </div>
+
+    <div class="card">
+        <h3 style="color:#1d4ed8;margin-bottom:6px;">📋 Detalle de Adelantos</h3>
+        <p class="nota">Entran según FECHA DE FIRMA · Dejan de contar al día siguiente del EVENTO</p>
+        <div class="tabla-wrap">
             <table>
-                <thead><tr><th>N°</th><th>Nombre del Músico</th></tr></thead>
-                <tbody id="tabla-seleccion-body"></tbody>
-            </table>
-        </div>
-        <button onclick="App.controlador.confirmarSeleccion()">Continuar</button>
-    </div>
-
-    <div id="pantalla-resultados" class="pantalla">
-        <h2 id="titulo-resultados">Resumen del Presupuesto</h2>
-        <button class="btn-atras" onclick="App.navegacion.irA('pantalla-seleccion')">⬅️ Corregir</button>
-
-        <div class="tabla-contenedor">
-            <table class="tabla-excel">
                 <thead>
-                    <tr>
-                        <th>Músico</th><th>Precio/h</th><th>Horas</th><th>Bolo</th><th>Adelanto</th><th>Neto</th><th>Pagado</th><th>Pagar</th>
-                    </tr>
+                    <tr><th>Estado</th><th>Fecha Evento</th><th>Horario</th><th>Evento</th><th>Monto</th></tr>
                 </thead>
-                <tbody id="tabla-resultados-body"></tbody>
+                <tbody id="tabla-adelantos-body"></tbody>
             </table>
         </div>
-
-        <div id="alerta-falta" class="alerta-falta">⚠️ Faltan S/. <span id="monto-falta">0.00</span> para cubrir todos los pagos</div>
-
-        <div id="resumen-final" class="recuadro recuadro-grande resumen-box"></div>
-        <br>
-        <button id="btn-accion-principal" onclick="App.controlador.accionPrincipal()"></button>
-        <button class="btn-pdf" onclick="App.pdf.exportar()">📄 Descargar PDF</button>
+        <p class="total-texto">Vigentes: S/ <span id="total-adelantos-vigentes">0.00</span></p>
     </div>
 
-    <div id="pantalla-historial" class="pantalla">
-        <h2 id="titulo-historial">Contratos Guardados</h2>
-        <button class="btn-resumen" onclick="App.navegacion.irA('pantalla-resumen-financiero')">💰 Ver Resumen de Ganancias</button>
-
-        <ul id="lista-contratos" class="lista-contratos"></ul>
-        <br>
-        <button onclick="App.controlador.nuevoContrato()">➕ Nuevo Contrato</button>
-        <button class="btn-staff-principal" onclick="App.controlador.editarStaff()">👥 Editar Staff</button>
+    <div class="card card-green" style="padding:14px;">
+        <h3 style="color:#15803d;margin-bottom:6px;">📈 Ganancias Reales Mensuales</h3>
+        <p class="nota">Según FECHA DEL EVENTO</p>
+        <div id="contenedor-ganancias-adelantos"></div>
     </div>
+</div>
 
-    <div id="pantalla-resumen-financiero" class="pantalla">
-        <h2>💰 Resumen de Ganancias</h2>
-        <button class="btn-atras" onclick="App.navegacion.irA('pantalla-historial')">⬅️ Volver a Contratos</button>
-        <button class="btn-resumen" onclick="App.navegacion.irA('pantalla-adelantos')">📋 Ver Detalle de Adelantos</button>
+<!-- ═══════════════════════════════════════ JS ═══════════════════════════════════════ -->
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSySyBhf6dRmAzRjORmGLKnJHfzelt01I",
+        authDomain: "presupuestopararevelacion.firebaseapp.com",
+        databaseURL: "https://presupuestopararevelacion-default-rtdb.firebaseio.com",
+        projectId: "presupuestopararevelacion",
+        storageBucket: "presupuestopararevelacion.appspot.com",
+        messagingSenderId: "55951143914",
+        appId: "1:55951143914:web:ea7edb2e8a55c8d331",
+        measurementId: "G-P3PY089YKC"
+    };
 
-        <div class="recuadro recuadro-grande recuadro-caja">
-            <h3 style="color:#007bff; margin: 8px 0;">💵 TOTAL EN CAJA</h3>
-            <p style="font-size:0.8rem; color:#333;">*Adelantos de eventos futuros</p>
-            <h2 id="total-caja-fecha" style="font-size:1.8rem; color:#007bff; margin:8px 0;">S/. 0.00</h2>
-        </div>
+    firebase.initializeApp(firebaseConfig);
+    const db      = firebase.database();
+    const storage = firebase.storage();
+    const datosRef = db.ref('app_presupuestos');
 
-        <div class="recuadro recuadro-grande recuadro-ganancia">
-            <h3 style="color:#1e7e34;">📊 Ganancias Netas</h3>
-            <p style="font-size:0.8rem; color:#333; margin-bottom:10px;">*Por mes y año - Total general para el negocio</p>
-            <div id="contenedor-ganancias-mensuales"></div>
-        </div>
-    </div>
+    // ═══ SERVICE WORKER REGISTRATION ═══
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
 
-    <div id="pantalla-adelantos" class="pantalla">
-        <h2>📋 Resumen de Dinero Real</h2>
-        <button class="btn-atras" onclick="App.navegacion.irA('pantalla-resumen-financiero')">⬅️ Volver a Resumen</button>
-
-        <div class="recuadro recuadro-grande recuadro-caja">
-            <h3 style="color:#007bff; margin: 8px 0;">💵 TOTAL DE DINERO EN CAJA A LA FECHA</h3>
-            <p class="nota">*Se actualiza automáticamente: Al día siguiente del evento, ese dinero ya no se cuenta porque ya se usó/repartió</p>
-            <h2 id="total-caja-adelantos" style="font-size:2rem; color:#007bff; margin:15px 0;">S/. 0.00</h2>
-        </div>
-
-        <div class="recuadro recuadro-grande">
-            <h3 style="color:#007bff; margin: 8px 0;">📋 Detalle de Adelantos Recibidos</h3>
-            <p class="nota">*Entran según FECHA DE FIRMA - *Dejan de contar al día siguiente de la FECHA DEL EVENTO</p>
-            
-            <div class="tabla-contenedor">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Estado</th>
-                            <th>Fecha</th>
-                            <th>Horario</th>
-                            <th>Evento</th>
-                            <th>Monto (S/)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabla-adelantos-body"></tbody>
-                </table>
-            </div>
-
-            <p class="total-texto">Total adelantos vigentes: S/ <span id="total-adelantos-vigentes">0.00</span></p>
-        </div>
-
-        <div class="recuadro recuadro-grande recuadro-ganancia">
-            <h3 style="color:#1e7e34;">📈 Ganancias Reales Mensuales</h3>
-            <p class="nota">*Ganancia después de todo, según FECHA DEL EVENTO</p>
-            <div id="contenedor-ganancias-adelantos"></div>
-        </div>
-    </div>
-
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSySyBhf6dRmAzRjORmGLKnJHfzelt01I",
-            authDomain: "presupuestopararevelacion.firebaseapp.com",
-            databaseURL: "https://presupuestopararevelacion-default-rtdb.firebaseio.com",
-            projectId: "presupuestopararevelacion",
-            storageBucket: "presupuestopararevelacion.appspot.com",
-            messagingSenderId: "55951143914",
-            appId: "1:55951143914:web:ea7edb2e8a55c8d331",
-            measurementId: "G-P3PY089YKC"
-        };
-        
-        const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        const datosRef = db.ref('app_presupuestos');
-
-        const App = {
-            estado: {
-                agrupacion: "",
-                staff: {},
-                contratoActual: { 
-                    nombre: "", fechaFirma: "", fechaContrato: "",
-                    horaInicio: "", horaFin: "",
-                    horas: 0, integrantes: 0, precioHora: 0, movilidadCliente: 0, adelantoCliente: 0 
-                },
-                seleccionados: [],
-                contratos: [],
-                gastoMovilidadReal: 0,
-                contratoEditandoIndex: -1,
-                editandoStaff: false
+    const App = {
+        estado: {
+            agrupacion: "",
+            staff: {},
+            contratoActual: {
+                nombre:"", fechaFirma:"", fechaContrato:"",
+                horaInicio:"", horaFin:"",
+                horas:0, integrantes:0, precioHora:0, movilidadCliente:0, adelantoCliente:0,
+                urlContrato: ""
             },
+            seleccionados: [],
+            contratos: [],
+            gastoMovilidadReal: 0,
+            contratoEditandoIndex: -1,
+            editandoStaff: false
+        },
 
-            init() {
-                try {
-                    this.cargarDatosFirebase();
-                    setTimeout(() => {
-                        const splash = document.getElementById('splash-screen');
-                        if (splash) splash.classList.add('oculto');
-                        setTimeout(() => { if (splash) splash.style.display = 'none'; }, 800);
-                    }, 1200);
-                } catch (error) {
-                    console.error("Error al iniciar:", error);
+        init() {
+            // El splash SIEMPRE se oculta, independientemente de Firebase
+            const ocultarSplash = () => {
+                const s = document.getElementById('splash-screen');
+                if (s) { s.classList.add('oculto'); setTimeout(()=>s.style.display='none',700); }
+            };
+            setTimeout(ocultarSplash, 1500);
+
+            try {
+                this.cargarDatosFirebase();
+            } catch(e) {
+                ocultarSplash();
+                this.navegacion.irA('pantalla-nombre');
+            }
+        },
+
+        async cargarDatosFirebase() {
+            try {
+                const snap = await datosRef.once('value');
+                const d = snap.val();
+                if (d) {
+                    this.estado.agrupacion = d.agrupacion || "";
+                    this.estado.staff      = d.staff      || {};
+                    this.estado.contratos  = d.contratos  || [];
+                    this.storage_fn.validarEstado(this.estado);
+                }
+
+                datosRef.on('value', snap2 => {
+                    const d2 = snap2.val();
+                    if (d2) {
+                        this.estado.agrupacion = d2.agrupacion || "";
+                        this.estado.staff      = d2.staff      || {};
+                        this.estado.contratos  = d2.contratos  || [];
+                        this.storage_fn.validarEstado(this.estado);
+                        this.actualizarVistaCompleta();
+                    }
+                });
+
+                if (this.estado.agrupacion?.trim()) {
+                    const el = document.getElementById('input-nombre-agrupacion');
+                    if (el) el.value = this.estado.agrupacion;
+                    this.controlador.iniciarAgrupacion(true);
+                    if (this.estado.contratos?.length) {
+                        this.navegacion.irA('pantalla-historial');
+                        this.adelantos.actualizarDetalle();
+                    } else {
+                        this.navegacion.irA('pantalla-staff');
+                    }
+                } else {
                     this.navegacion.irA('pantalla-nombre');
                 }
-            },
+            } catch(e) {
+                const s = document.getElementById('splash-screen');
+                if (s) { s.classList.add('oculto'); setTimeout(()=>s.style.display='none',700); }
+                this.navegacion.irA('pantalla-nombre');
+            }
+        },
 
-            async cargarDatosFirebase() {
+        async guardarDatosFirebase() {
+            try {
+                await datosRef.set({
+                    agrupacion: this.estado.agrupacion,
+                    staff:      this.estado.staff,
+                    contratos:  this.estado.contratos
+                });
+                return true;
+            } catch(e) {
+                alert("❌ Error al guardar: " + e.message);
+                return false;
+            }
+        },
+
+        actualizarVistaCompleta() {
+            if (document.getElementById('grid-staff')?.offsetParent)                  this.render.staff();
+            if (document.getElementById('lista-contratos')?.offsetParent)             this.render.historial();
+            if (document.getElementById('contenedor-ganancias-mensuales')?.offsetParent) this.render.resumenFinanciero();
+            if (document.getElementById('tabla-adelantos-body')?.offsetParent)        this.adelantos.actualizarDetalle();
+        },
+
+        // ── FIREBASE STORAGE (subida de archivo) ──
+        storage: {
+            async subirContrato() {
+                const input = document.getElementById('input-archivo-contrato');
+                const file  = input?.files?.[0];
+                if (!file) { alert('Selecciona un archivo primero.'); return; }
+
+                const c    = App.estado.contratoActual;
+                const name = `contratos/${c.nombre.replace(/\s+/g,'_')}_${Date.now()}_${file.name}`;
+                const ref  = storage.ref().child(name);
+
+                const prog = document.getElementById('upload-progress');
+                prog.style.display = 'block';
+                prog.textContent = 'Subiendo...';
+
                 try {
-                    const snapshot = await datosRef.once('value');
-                    const datosGuardados = snapshot.val();
-                    
-                    if (datosGuardados) {
-                        this.estado.agrupacion = datosGuardados.agrupacion || "";
-                        this.estado.staff = datosGuardados.staff || {};
-                        this.estado.contratos = datosGuardados.contratos || [];
-                        this.storage.validarEstado(this.estado);
-                    }
-
-                    datosRef.on('value', (snap) => {
-                        const datosNuevos = snap.val();
-                        if (datosNuevos) {
-                            this.estado.agrupacion = datosNuevos.agrupacion || "";
-                            this.estado.staff = datosNuevos.staff || {};
-                            this.estado.contratos = datosNuevos.contratos || [];
-                            this.storage.validarEstado(this.estado);
-                            this.actualizarVistaCompleta();
-                        }
-                    });
-
-                    if (this.estado.agrupacion && this.estado.agrupacion.trim() !== "") {
-                        const inputNombre = document.getElementById('input-nombre-agrupacion');
-                        if (inputNombre) inputNombre.value = this.estado.agrupacion;
-                        this.controlador.iniciarAgrupacion(true);
-                        if (this.estado.contratos && this.estado.contratos.length > 0) {
-                            this.navegacion.irA('pantalla-historial');
-                            this.adelantos.actualizarDetalle();
-                        } else {
-                            this.navegacion.irA('pantalla-staff');
-                        }
-                    } else {
-                        this.navegacion.irA('pantalla-nombre');
-                    }
-
-                } catch (error) {
-                    console.error("Error al cargar datos de Firebase:", error);
-                    alert("⚠️ No se pudo conectar. Verifica tu internet y la configuración de Firebase.");
-                    this.navegacion.irA('pantalla-nombre');
+                    const snap = await ref.put(file);
+                    const url  = await snap.ref.getDownloadURL();
+                    App.estado.contratoActual.urlContrato = url;
+                    prog.textContent = '✅ Subido correctamente';
+                    App.render.mostrarLinkContrato(url);
+                } catch(e) {
+                    prog.textContent = '❌ Error: ' + e.message;
                 }
+            }
+        },
+
+        util: {
+            esFechaPasada(f) {
+                if (!f) return true;
+                const h = new Date(); h.setHours(0,0,0,0);
+                return new Date(f) < h;
             },
-
-            async guardarDatosFirebase() {
-                try {
-                    const datosLimpios = {
-                        agrupacion: this.estado.agrupacion,
-                        staff: this.estado.staff,
-                        contratos: this.estado.contratos
-                    };
-                    await datosRef.set(datosLimpios);
-                    return true;
-                } catch (error) {
-                    console.error("Error al guardar en Firebase:", error);
-                    alert("❌ No se pudieron guardar los cambios: " + error.message);
-                    return false;
-                }
+            formatearFecha(f) {
+                if (!f || f.length < 10) return "Sin fecha";
+                const p = f.split('-');
+                return `${p[2]}/${p[1]}/${p[0]}`;
             },
-
-            actualizarVistaCompleta() {
-                if (document.getElementById('grid-staff')?.offsetParent) this.render.staff();
-                if (document.getElementById('lista-contratos')?.offsetParent) this.render.historial();
-                if (document.getElementById('contenedor-ganancias-mensuales')?.offsetParent) this.render.resumenFinanciero();
-                if (document.getElementById('tabla-adelantos-body')?.offsetParent) this.adelantos.actualizarDetalle();
+            formatearHorario(i,e) {
+                if (!i && !e) return "Sin horario";
+                if (!e) return `Desde ${i}`;
+                if (!i) return `Hasta ${e}`;
+                return `${i} – ${e}`;
             },
+            activarAutocompletado(input) {
+                const nombres = Object.values(App.estado.staff).map(m => m.nombreOriginal);
+                const wrap = document.createElement('div');
+                wrap.className = 'autocomplete-container';
+                const lista = document.createElement('div');
+                lista.className = 'autocomplete-list';
+                input.parentNode.insertBefore(wrap, input);
+                wrap.appendChild(input); wrap.appendChild(lista);
 
-            util: {
-                esFechaPasada(fechaStr) {
-                    if(!fechaStr) return true;
-                    const hoy = new Date();
-                    hoy.setHours(0,0,0,0);
-                    const fechaEvento = new Date(fechaStr);
-                    return fechaEvento < hoy;
-                },
-                
-                formatearFecha(fechaStr) {
-                    if (!fechaStr || fechaStr.length < 10) return "Sin fecha";
-                    const partes = fechaStr.split('-');
-                    return `${partes[2]} / ${partes[1]} / ${partes[0]}`;
-                },
-
-                formatearHorario(horaInicio, horaFin) {
-                    if (!horaInicio && !horaFin) return "Sin horario";
-                    if (!horaFin) return `Desde ${horaInicio}`;
-                    if (!horaInicio) return `Hasta ${horaFin}`;
-                    return `${horaInicio} - ${horaFin}`;
-                },
-
-                activarAutocompletado(input) {
-                    const nombres = Object.values(App.estado.staff).map(m => m.nombreOriginal);
-                    const contenedor = document.createElement('div');
-                    contenedor.className = 'autocomplete-container';
-                    const lista = document.createElement('div');
-                    lista.className = 'autocomplete-list';
-                    
-                    input.parentNode.insertBefore(contenedor, input);
-                    contenedor.appendChild(input);
-                    contenedor.appendChild(lista);
-
-                    input.addEventListener('input', function() {
-                        const valor = this.value.trim().toLowerCase();
-                        lista.innerHTML = '';
-                        lista.style.display = 'none';
-                        if (valor.length < 1) return;
-                        const coincidencias = nombres.filter(n => n.toLowerCase().includes(valor));
-                        if (coincidencias.length > 0) {
-                            lista.style.display = 'block';
-                            coincidencias.forEach(nombre => {
-                                const item = document.createElement('div');
-                                item.className = 'autocomplete-item';
-                                item.textContent = nombre;
-                                item.addEventListener('click', () => {
-                                    input.value = nombre;
-                                    lista.style.display = 'none';
-                                });
-                                lista.appendChild(item);
-                            });
-                        }
-                    });
-
-                    document.addEventListener('click', function(e) {
-                        if (!contenedor.contains(e.target)) lista.style.display = 'none';
-                    });
-                },
-
-                num(valor) {
-                    return isNaN(parseFloat(valor)) || valor < 0 ? 0 : parseFloat(valor);
-                },
-
-                ordenarPorFechaEvento(listaContratos) {
-                    return [...listaContratos].sort((a, b) => {
-                        const fechaA = a.datos.fechaContrato ? new Date(a.datos.fechaContrato) : new Date(0);
-                        const fechaB = b.datos.fechaContrato ? new Date(b.datos.fechaContrato) : new Date(0);
-                        return fechaA - fechaB;
-                    });
-                },
-
-                // ✅ NUEVO: obtener datos de pago del staff por nombre
-                obtenerDatosPago(nombreDisplay) {
-                    const clave = nombreDisplay.toLowerCase();
-                    const musico = App.estado.staff[clave];
-                    if (!musico) return { celular: null, metodoPago: null };
-                    return {
-                        celular: musico.celular || null,
-                        metodoPago: musico.metodoPago || null
-                    };
-                },
-
-                // ✅ NUEVO: copiar número al portapapeles
-                async copiarCelular(nombreDisplay, boton) {
-                    const datos = this.obtenerDatosPago(nombreDisplay);
-                    if (!datos.celular) {
-                        alert(`⚠️ ${nombreDisplay} no tiene número de celular registrado en el Staff.`);
-                        return;
-                    }
-                    try {
-                        await navigator.clipboard.writeText(datos.celular);
-                        const textoOriginal = boton.textContent;
-                        boton.textContent = '✅ Copiado!';
-                        boton.style.background = '#28a745';
-                        setTimeout(() => {
-                            boton.textContent = textoOriginal;
-                            boton.style.background = '';
-                        }, 2000);
-                    } catch (e) {
-                        // Fallback para navegadores sin soporte clipboard
-                        const input = document.createElement('input');
-                        input.value = datos.celular;
-                        document.body.appendChild(input);
-                        input.select();
-                        document.execCommand('copy');
-                        document.body.removeChild(input);
-                        alert(`📋 Número copiado: ${datos.celular}`);
-                    }
-                }
-            },
-
-            storage: {
-                validarEstado(estado) {
-                    if (!estado.staff || typeof estado.staff !== 'object') estado.staff = {};
-                    if (!Array.isArray(estado.contratos)) estado.contratos = [];
-                    if (!estado.contratoActual) estado.contratoActual = {};
-                }
-            },
-
-            navegacion: {
-                irA(idPantalla) {
-                    document.querySelectorAll('.pantalla').forEach(p => p.classList.remove('activa'));
-                    const pantalla = document.getElementById(idPantalla);
-                    if (pantalla) pantalla.classList.add('activa');
-                    if(idPantalla === 'pantalla-resumen-financiero') {
-                        App.render.resumenFinanciero();
-                        App.adelantos.actualizarDetalle();
-                    }
-                    if(idPantalla === 'pantalla-adelantos') App.adelantos.actualizarDetalle();
-                },
-                volverStaff() {
-                    if (App.estado.editandoStaff) {
-                        App.estado.editandoStaff = false;
-                        this.irA('pantalla-historial');
-                    } else {
-                        this.irA('pantalla-nombre');
-                    }
-                }
-            },
-
-            controlador: {
-                iniciarAgrupacion(esCargaInicial = false) {
-                    const nombre = document.getElementById('input-nombre-agrupacion').value.trim();
-                    if (!nombre && !esCargaInicial) {
-                        alert('Por favor ingresa el nombre de la agrupación');
-                        return;
-                    }
-                    App.estado.agrupacion = nombre || App.estado.agrupacion;
-                    document.getElementById('titulo-staff').innerText = `Staff - ${App.estado.agrupacion}`;
-                    document.getElementById('titulo-contrato').innerText = `Contrato - ${App.estado.agrupacion}`;
-                    document.getElementById('titulo-historial').innerText = `Contratos - ${App.estado.agrupacion}`;
-                    App.render.staff();
-                    if (!esCargaInicial) {
-                        App.navegacion.irA('pantalla-staff');
-                        App.guardarDatosFirebase();
-                    }
-                },
-
-                guardarStaff() {
-                    const nuevoStaff = {};
-                    const nombresUsados = new Set();
-                    for (let i = 1; i <= 50; i++) {
-                        const nombreInput = document.getElementById(`staff-nombre-${i}`);
-                        const tarifaInput = document.getElementById(`staff-tarifa-${i}`);
-                        const celularInput = document.getElementById(`staff-celular-${i}`);
-                        const metodoPagoInput = document.getElementById(`staff-metodo-${i}`);
-                        if (!nombreInput || !tarifaInput) continue;
-                        const nombre = nombreInput.value.trim();
-                        if (nombre) {
-                            const clave = nombre.toLowerCase();
-                            if (nombresUsados.has(clave)) { alert(`El nombre "${nombre}" está repetido`); return; }
-                            nombresUsados.add(clave);
-                            nuevoStaff[clave] = {
-                                nombreOriginal: nombre,
-                                tarifa: App.util.num(tarifaInput.value),
-                                // ✅ NUEVO: guardar celular y método de pago
-                                celular: celularInput ? celularInput.value.trim() : '',
-                                metodoPago: metodoPagoInput ? metodoPagoInput.value : 'Yape'
-                            };
-                        }
-                    }
-                    App.estado.staff = nuevoStaff;
-                    App.guardarDatosFirebase();
-                    if (App.estado.editandoStaff) {
-                        App.estado.editandoStaff = false;
-                        App.navegacion.irA('pantalla-historial');
-                    } else {
-                        App.navegacion.irA('pantalla-transicion');
-                        setTimeout(() => App.navegacion.irA('pantalla-contrato'), 1800);
-                    }
-                },
-
-                editarStaff() {
-                    App.estado.editandoStaff = true;
-                    App.navegacion.irA('pantalla-staff');
-                },
-
-                guardarDatosContrato() {
-                    const c = App.estado.contratoActual;
-                    c.nombre = document.getElementById('input-nombre-contrato').value.trim() || "Sin nombre";
-                    c.fechaFirma = document.getElementById('input-fecha-firma').value || "";
-                    c.fechaContrato = document.getElementById('input-fecha-contrato').value || "";
-                    c.horaInicio = document.getElementById('input-hora-inicio').value || "";
-                    c.horaFin = document.getElementById('input-hora-fin').value || "";
-                    c.horas = App.util.num(document.getElementById('input-horas').value);
-                    c.integrantes = parseInt(document.getElementById('input-cant-integrantes').value) || 0;
-                    c.precioHora = App.util.num(document.getElementById('input-precio-hora').value);
-                    c.movilidadCliente = App.util.num(document.getElementById('input-movilidad').value);
-                    c.adelantoCliente = App.util.num(document.getElementById('input-adelanto-cliente').value);
-                    if (App.estado.contratoEditandoIndex === -1) App.estado.gastoMovilidadReal = c.movilidadCliente;
-                    App.render.seleccion();
-                    App.navegacion.irA('pantalla-seleccion');
-                },
-
-                confirmarSeleccion() {
-                    const inputs = document.querySelectorAll('.input-seleccion');
-                    const nuevosSeleccionados = [];
-                    const nombresUsados = new Set();
-                    let idCounter = 0;
-                    for (let input of inputs) {
-                        const nombre = input.value.trim();
-                        if (nombre) {
-                            const clave = nombre.toLowerCase();
-                            if (nombresUsados.has(clave)) { alert(`El nombre "${nombre}" está repetido`); return; }
-                            nombresUsados.add(clave);
-                            const esUtilero = clave === 'utilero';
-                            const musicoStaff = App.estado.staff[clave];
-                            nuevosSeleccionados.push({
-                                id: idCounter++,
-                                nombreDisplay: esUtilero ? 'Utilero' : (musicoStaff ? musicoStaff.nombreOriginal : nombre),
-                                tipo: esUtilero ? 'utilero' : (musicoStaff ? 'planta' : 'invitado'),
-                                tarifaHora: musicoStaff ? musicoStaff.tarifa : 0,
-                                horasTocadas: App.estado.contratoActual.horas,
-                                boloGlobal: 0,
-                                adelantoDado: 0,
-                                pagado: false  // ✅ NUEVO: estado de pago
-                            });
-                        }
-                    }
-                    App.estado.seleccionados = nuevosSeleccionados;
-                    App.calculos.actualizarTodo();
-                    App.navegacion.irA('pantalla-resultados');
-                },
-
-                async accionPrincipal() {
-                    const gananciaCalculada = App.calculos.calcularGananciaActual();
-                    if (App.estado.contratoEditandoIndex === -1) {
-                        App.estado.contratos.push({
-                            datos: JSON.parse(JSON.stringify(App.estado.contratoActual)),
-                            personal: JSON.parse(JSON.stringify(App.estado.seleccionados)),
-                            gastoMovilidad: App.estado.gastoMovilidadReal,
-                            gananciaNeta: gananciaCalculada
+                input.addEventListener('input', function() {
+                    const v = this.value.trim().toLowerCase();
+                    lista.innerHTML = ''; lista.style.display='none';
+                    if (!v) return;
+                    const hits = nombres.filter(n => n.toLowerCase().includes(v));
+                    if (hits.length) {
+                        lista.style.display='block';
+                        hits.forEach(n => {
+                            const it = document.createElement('div');
+                            it.className='autocomplete-item'; it.textContent=n;
+                            it.addEventListener('click', () => { input.value=n; lista.style.display='none'; });
+                            lista.appendChild(it);
                         });
-                    } else {
-                        App.estado.contratos[App.estado.contratoEditandoIndex] = {
-                            datos: JSON.parse(JSON.stringify(App.estado.contratoActual)),
-                            personal: JSON.parse(JSON.stringify(App.estado.seleccionados)),
-                            gastoMovilidad: App.estado.gastoMovilidadReal,
-                            gananciaNeta: gananciaCalculada
+                    }
+                });
+                document.addEventListener('click', e => { if (!wrap.contains(e.target)) lista.style.display='none'; });
+            },
+            num(v) { const n=parseFloat(v); return (isNaN(n)||n<0)?0:n; },
+            ordenarPorFechaEvento(arr) {
+                return [...arr].sort((a,b) => {
+                    const fa = a.datos.fechaContrato ? new Date(a.datos.fechaContrato) : new Date(0);
+                    const fb = b.datos.fechaContrato ? new Date(b.datos.fechaContrato) : new Date(0);
+                    return fa-fb;
+                });
+            },
+            obtenerDatosPago(nombre) {
+                const m = App.estado.staff[nombre.toLowerCase()];
+                return m ? { celular: m.celular||null, metodoPago: m.metodoPago||'Yape' } : { celular:null, metodoPago:'Yape' };
+            },
+            async copiarCelular(nombre, btn) {
+                const d = this.obtenerDatosPago(nombre);
+                if (!d.celular) { alert(`⚠️ ${nombre} no tiene número registrado.`); return; }
+                try {
+                    await navigator.clipboard.writeText(d.celular);
+                } catch {
+                    const inp = document.createElement('input');
+                    inp.value = d.celular; document.body.appendChild(inp);
+                    inp.select(); document.execCommand('copy'); document.body.removeChild(inp);
+                }
+                const orig = btn.innerHTML;
+                btn.innerHTML = '✅'; btn.style.background='#16a34a';
+                setTimeout(()=>{ btn.innerHTML=orig; btn.style.background=''; }, 2000);
+            }
+        },
+
+        storage_fn: {
+            validarEstado(e) {
+                if (!e.staff || typeof e.staff!=='object') e.staff={};
+                if (!Array.isArray(e.contratos)) e.contratos=[];
+                if (!e.contratoActual) e.contratoActual={};
+            }
+        },
+
+        navegacion: {
+            irA(id) {
+                document.querySelectorAll('.pantalla').forEach(p=>p.classList.remove('activa'));
+                const p = document.getElementById(id);
+                if (p) p.classList.add('activa');
+                if (id==='pantalla-resumen-financiero') { App.render.resumenFinanciero(); App.adelantos.actualizarDetalle(); }
+                if (id==='pantalla-adelantos') App.adelantos.actualizarDetalle();
+                window.scrollTo(0,0);
+            },
+            volverStaff() {
+                if (App.estado.editandoStaff) {
+                    App.estado.editandoStaff=false; this.irA('pantalla-historial');
+                } else {
+                    this.irA('pantalla-nombre');
+                }
+            }
+        },
+
+        controlador: {
+            iniciarAgrupacion(esCarga=false) {
+                const nombre = document.getElementById('input-nombre-agrupacion').value.trim();
+                if (!nombre && !esCarga) { alert('Ingresa el nombre de la agrupación'); return; }
+                App.estado.agrupacion = nombre || App.estado.agrupacion;
+                document.getElementById('titulo-staff').innerText    = `Staff – ${App.estado.agrupacion}`;
+                document.getElementById('titulo-contrato').innerText  = `Contrato – ${App.estado.agrupacion}`;
+                document.getElementById('titulo-historial').innerText = `${App.estado.agrupacion}`;
+                App.render.staff();
+                if (!esCarga) { App.navegacion.irA('pantalla-staff'); App.guardarDatosFirebase(); }
+            },
+
+            guardarStaff() {
+                const nuevoStaff = {}; const usados = new Set();
+                for (let i=1; i<=50; i++) {
+                    const nEl = document.getElementById(`sn-${i}`);
+                    const tEl = document.getElementById(`st-${i}`);
+                    const cEl = document.getElementById(`sc-${i}`);
+                    const mEl = document.getElementById(`sm-${i}`);
+                    if (!nEl||!tEl) continue;
+                    const n = nEl.value.trim();
+                    if (n) {
+                        const k = n.toLowerCase();
+                        if (usados.has(k)) { alert(`"${n}" está repetido`); return; }
+                        usados.add(k);
+                        nuevoStaff[k] = {
+                            nombreOriginal: n,
+                            tarifa: App.util.num(tEl.value),
+                            celular: cEl?.value.trim()||'',
+                            metodoPago: mEl?.value||'Yape'
                         };
                     }
-                    const guardado = await App.guardarDatosFirebase();
-                    if (guardado) {
-                        App.render.historial();
-                        App.navegacion.irA('pantalla-historial');
-                    }
-                },
-
-                nuevoContrato() {
-                    App.estado.contratoEditandoIndex = -1;
-                    App.estado.contratoActual = { 
-                        nombre: "", fechaFirma: "", fechaContrato: "",
-                        horaInicio: "", horaFin: "",
-                        horas: 0, integrantes: 0, precioHora: 0, movilidadCliente: 0, adelantoCliente: 0 
-                    };
-                    App.estado.seleccionados = [];
-                    App.estado.gastoMovilidadReal = 0;
-                    ['input-nombre-contrato','input-fecha-firma','input-fecha-contrato','input-hora-inicio','input-hora-fin',
-                     'input-horas','input-cant-integrantes','input-precio-hora','input-movilidad','input-adelanto-cliente']
-                    .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
-                    App.navegacion.irA('pantalla-contrato');
-                },
-
-                editarContrato(indexOriginal) {
-                    const listaOrdenada = App.util.ordenarPorFechaEvento(App.estado.contratos);
-                    const contrato = listaOrdenada[indexOriginal];
-                    const indiceReal = App.estado.contratos.findIndex(c => 
-                        JSON.stringify(c.datos) === JSON.stringify(contrato.datos) &&
-                        JSON.stringify(c.personal) === JSON.stringify(contrato.personal)
-                    );
-                    App.estado.contratoEditandoIndex = indiceReal;
-                    App.estado.contratoActual = JSON.parse(JSON.stringify(contrato.datos));
-                    App.estado.seleccionados = JSON.parse(JSON.stringify(contrato.personal));
-                    // ✅ Asegurar que todos tengan campo pagado
-                    App.estado.seleccionados.forEach(m => { if (m.pagado === undefined) m.pagado = false; });
-                    App.estado.gastoMovilidadReal = contrato.gastoMovilidad || 0;
-                    document.getElementById('input-nombre-contrato').value = contrato.datos.nombre;
-                    document.getElementById('input-fecha-firma').value = contrato.datos.fechaFirma || "";
-                    document.getElementById('input-fecha-contrato').value = contrato.datos.fechaContrato || "";
-                    document.getElementById('input-hora-inicio').value = contrato.datos.horaInicio || "";
-                    document.getElementById('input-hora-fin').value = contrato.datos.horaFin || "";
-                    document.getElementById('input-horas').value = contrato.datos.horas || 0;
-                    document.getElementById('input-cant-integrantes').value = contrato.datos.integrantes || 0;
-                    document.getElementById('input-precio-hora').value = contrato.datos.precioHora || 0;
-                    document.getElementById('input-movilidad').value = contrato.datos.movilidadCliente || 0;
-                    document.getElementById('input-adelanto-cliente').value = contrato.datos.adelantoCliente || 0;
-                    App.calculos.actualizarTodo();
-                    App.navegacion.irA('pantalla-resultados');
-                },
-
-                async eliminarContrato(indexOriginal) {
-                    if (confirm('¿Estás seguro de eliminar este contrato?')) {
-                        const listaOrdenada = App.util.ordenarPorFechaEvento(App.estado.contratos);
-                        const contratoAEliminar = listaOrdenada[indexOriginal];
-                        const indiceReal = App.estado.contratos.findIndex(c => 
-                            JSON.stringify(c.datos) === JSON.stringify(contratoAEliminar.datos) &&
-                            JSON.stringify(c.personal) === JSON.stringify(contratoAEliminar.personal)
-                        );
-                        if (indiceReal !== -1) {
-                            App.estado.contratos.splice(indiceReal, 1);
-                            await App.guardarDatosFirebase();
-                            App.render.historial();
-                        }
-                    }
+                }
+                App.estado.staff = nuevoStaff;
+                App.guardarDatosFirebase();
+                if (App.estado.editandoStaff) {
+                    App.estado.editandoStaff=false; App.navegacion.irA('pantalla-historial');
+                } else {
+                    App.navegacion.irA('pantalla-transicion');
+                    setTimeout(()=>App.navegacion.irA('pantalla-contrato'),1800);
                 }
             },
 
-            calculos: {
-                actualizarCampo(id, campo, valor) {
-                    const musico = App.estado.seleccionados.find(m => m.id === id);
-                    if (musico) {
-                        musico[campo] = App.util.num(valor);
-                        this.actualizarTodo();
+            editarStaff() { App.estado.editandoStaff=true; App.navegacion.irA('pantalla-staff'); },
+
+            guardarDatosContrato() {
+                const c = App.estado.contratoActual;
+                c.nombre           = document.getElementById('input-nombre-contrato').value.trim()||"Sin nombre";
+                c.fechaFirma       = document.getElementById('input-fecha-firma').value||"";
+                c.fechaContrato    = document.getElementById('input-fecha-contrato').value||"";
+                c.horaInicio       = document.getElementById('input-hora-inicio').value||"";
+                c.horaFin          = document.getElementById('input-hora-fin').value||"";
+                c.horas            = App.util.num(document.getElementById('input-horas').value);
+                c.integrantes      = parseInt(document.getElementById('input-cant-integrantes').value)||0;
+                c.precioHora       = App.util.num(document.getElementById('input-precio-hora').value);
+                c.movilidadCliente = App.util.num(document.getElementById('input-movilidad').value);
+                c.adelantoCliente  = App.util.num(document.getElementById('input-adelanto-cliente').value);
+                if (App.estado.contratoEditandoIndex===-1) App.estado.gastoMovilidadReal = c.movilidadCliente;
+                App.render.seleccion();
+                App.navegacion.irA('pantalla-seleccion');
+            },
+
+            confirmarSeleccion() {
+                const inputs = document.querySelectorAll('.input-seleccion');
+                const nuevos=[]; const usados=new Set(); let id=0;
+                for (const inp of inputs) {
+                    const n = inp.value.trim();
+                    if (n) {
+                        const k=n.toLowerCase();
+                        if (usados.has(k)){ alert(`"${n}" está repetido`); return; }
+                        usados.add(k);
+                        const esUtilero = k==='utilero';
+                        const ms = App.estado.staff[k];
+                        nuevos.push({
+                            id: id++,
+                            nombreDisplay: esUtilero?'Utilero':(ms?ms.nombreOriginal:n),
+                            tipo: esUtilero?'utilero':(ms?'planta':'invitado'),
+                            tarifaHora: ms?ms.tarifa:0,
+                            horasTocadas: App.estado.contratoActual.horas,
+                            boloGlobal:0, adelantoDado:0, pagado:false
+                        });
                     }
-                },
+                }
+                App.estado.seleccionados = nuevos;
+                App.calculos.actualizarTodo();
+                App.navegacion.irA('pantalla-resultados');
+            },
 
-                // ✅ NUEVO: toggle estado pagado
-                togglePagado(id) {
-                    const musico = App.estado.seleccionados.find(m => m.id === id);
-                    if (musico) {
-                        musico.pagado = !musico.pagado;
-                        this.actualizarTodo();
-                    }
-                },
+            async accionPrincipal() {
+                const g = App.calculos.calcularGananciaActual();
+                const entrada = {
+                    datos: JSON.parse(JSON.stringify(App.estado.contratoActual)),
+                    personal: JSON.parse(JSON.stringify(App.estado.seleccionados)),
+                    gastoMovilidad: App.estado.gastoMovilidadReal,
+                    gananciaNeta: g
+                };
+                if (App.estado.contratoEditandoIndex===-1) {
+                    App.estado.contratos.push(entrada);
+                } else {
+                    App.estado.contratos[App.estado.contratoEditandoIndex]=entrada;
+                }
+                const ok = await App.guardarDatosFirebase();
+                if (ok) { App.render.historial(); App.navegacion.irA('pantalla-historial'); }
+            },
 
-                actualizarMovilidad(valor) {
-                    App.estado.gastoMovilidadReal = App.util.num(valor);
-                    this.actualizarTodo();
-                },
+            nuevoContrato() {
+                App.estado.contratoEditandoIndex=-1;
+                App.estado.contratoActual={
+                    nombre:"",fechaFirma:"",fechaContrato:"",
+                    horaInicio:"",horaFin:"",
+                    horas:0,integrantes:0,precioHora:0,movilidadCliente:0,adelantoCliente:0,urlContrato:""
+                };
+                App.estado.seleccionados=[]; App.estado.gastoMovilidadReal=0;
+                ['input-nombre-contrato','input-fecha-firma','input-fecha-contrato','input-hora-inicio',
+                 'input-hora-fin','input-horas','input-cant-integrantes','input-precio-hora',
+                 'input-movilidad','input-adelanto-cliente'].forEach(id=>{
+                    const el=document.getElementById(id); if(el) el.value='';
+                });
+                App.navegacion.irA('pantalla-contrato');
+            },
 
-                actualizarTodo() {
-                    App.render.resultados();
-                },
+            editarContrato(idx) {
+                const ord = App.util.ordenarPorFechaEvento(App.estado.contratos);
+                const ct  = ord[idx];
+                const ri  = App.estado.contratos.findIndex(c=>
+                    JSON.stringify(c.datos)===JSON.stringify(ct.datos) &&
+                    JSON.stringify(c.personal)===JSON.stringify(ct.personal));
+                App.estado.contratoEditandoIndex=ri;
+                App.estado.contratoActual   = JSON.parse(JSON.stringify(ct.datos));
+                App.estado.seleccionados    = JSON.parse(JSON.stringify(ct.personal));
+                App.estado.seleccionados.forEach(m=>{ if(m.pagado===undefined) m.pagado=false; });
+                App.estado.gastoMovilidadReal = ct.gastoMovilidad||0;
+                document.getElementById('input-nombre-contrato').value   = ct.datos.nombre;
+                document.getElementById('input-fecha-firma').value       = ct.datos.fechaFirma||"";
+                document.getElementById('input-fecha-contrato').value    = ct.datos.fechaContrato||"";
+                document.getElementById('input-hora-inicio').value       = ct.datos.horaInicio||"";
+                document.getElementById('input-hora-fin').value          = ct.datos.horaFin||"";
+                document.getElementById('input-horas').value             = ct.datos.horas||0;
+                document.getElementById('input-cant-integrantes').value  = ct.datos.integrantes||0;
+                document.getElementById('input-precio-hora').value       = ct.datos.precioHora||0;
+                document.getElementById('input-movilidad').value         = ct.datos.movilidadCliente||0;
+                document.getElementById('input-adelanto-cliente').value  = ct.datos.adelantoCliente||0;
+                App.calculos.actualizarTodo();
+                App.navegacion.irA('pantalla-resultados');
+            },
 
-                calcularGananciaActual() {
-                    const c = App.estado.contratoActual;
-                    const totalContrato = (c.precioHora * c.horas) + c.movilidadCliente;
-                    const totalBruto = App.estado.seleccionados.reduce((sum, m) => {
-                        if (m.tipo === 'utilero') return sum + m.boloGlobal;
-                        if (m.boloGlobal > 0) return sum + m.boloGlobal;
-                        return sum + (m.tarifaHora * m.horasTocadas);
-                    }, 0);
-                    return totalContrato - totalBruto - App.estado.gastoMovilidadReal;
+            async eliminarContrato(idx) {
+                if (!confirm('¿Eliminar este contrato?')) return;
+                const ord = App.util.ordenarPorFechaEvento(App.estado.contratos);
+                const ct  = ord[idx];
+                const ri  = App.estado.contratos.findIndex(c=>
+                    JSON.stringify(c.datos)===JSON.stringify(ct.datos) &&
+                    JSON.stringify(c.personal)===JSON.stringify(ct.personal));
+                if (ri!==-1) {
+                    App.estado.contratos.splice(ri,1);
+                    await App.guardarDatosFirebase();
+                    App.render.historial();
+                }
+            }
+        },
+
+        calculos: {
+            actualizarCampo(id,campo,valor) {
+                const m = App.estado.seleccionados.find(m=>m.id===id);
+                if (m) { m[campo]=App.util.num(valor); this.actualizarTodo(); }
+            },
+            togglePagado(id) {
+                const m = App.estado.seleccionados.find(m=>m.id===id);
+                if (m) { m.pagado=!m.pagado; this.actualizarTodo(); }
+            },
+            actualizarMovilidad(v) { App.estado.gastoMovilidadReal=App.util.num(v); this.actualizarTodo(); },
+            actualizarTodo() { App.render.resultados(); },
+            calcularGananciaActual() {
+                const c=App.estado.contratoActual;
+                const total=(c.precioHora*c.horas)+c.movilidadCliente;
+                const bruto=App.estado.seleccionados.reduce((s,m)=>{
+                    if(m.tipo==='utilero') return s+m.boloGlobal;
+                    return s+(m.boloGlobal>0?m.boloGlobal:m.tarifaHora*m.horasTocadas);
+                },0);
+                return total-bruto-App.estado.gastoMovilidadReal;
+            }
+        },
+
+        render: {
+            staff() {
+                const grid=document.getElementById('grid-staff');
+                if(!grid) return; grid.innerHTML='';
+                for(let i=1;i<=50;i++) {
+                    grid.innerHTML+=`
+                    <div class="staff-card">
+                        <strong>Músico ${i}</strong>
+                        <input type="text" placeholder="Nombre" id="sn-${i}">
+                        <div class="moneda-row">
+                            <input type="number" step="0.01" placeholder="Tarifa/h" id="st-${i}" style="margin-bottom:0;">
+                            <span class="moneda-tag">S/.</span>
+                        </div>
+                        <input type="tel" placeholder="📱 Celular" id="sc-${i}" maxlength="9">
+                        <div class="staff-metodo-row">
+                            <label class="field-label" style="margin:0;white-space:nowrap;">Método:</label>
+                            <select id="sm-${i}" style="margin-bottom:0;">
+                                <option value="Yape">💜 Yape</option>
+                                <option value="Plin">💙 Plin</option>
+                            </select>
+                        </div>
+                    </div>`;
+                }
+                Object.keys(App.estado.staff).forEach((k,i)=>{
+                    const m=App.estado.staff[k]; const n=i+1;
+                    const nEl=document.getElementById(`sn-${n}`);
+                    const tEl=document.getElementById(`st-${n}`);
+                    const cEl=document.getElementById(`sc-${n}`);
+                    const mEl=document.getElementById(`sm-${n}`);
+                    if(nEl){ nEl.value=m.nombreOriginal; tEl.value=m.tarifa;
+                             if(cEl) cEl.value=m.celular||'';
+                             if(mEl) mEl.value=m.metodoPago||'Yape'; }
+                });
+            },
+
+            seleccion() {
+                const tb=document.getElementById('tabla-seleccion-body');
+                if(!tb) return; tb.innerHTML='';
+                const cant=App.estado.contratoActual.integrantes+2;
+                for(let i=0;i<cant;i++){
+                    const val=App.estado.seleccionados[i]?App.estado.seleccionados[i].nombreDisplay:'';
+                    const tr=document.createElement('tr');
+                    tr.innerHTML=`<td>${i+1}</td><td><input type="text" class="input-seleccion" value="${val}" placeholder="Escribe el nombre..."></td>`;
+                    tb.appendChild(tr);
+                    App.util.activarAutocompletado(tr.querySelector('.input-seleccion'));
                 }
             },
 
-            render: {
-                staff() {
-                    const grid = document.getElementById('grid-staff');
-                    if (!grid) return;
-                    grid.innerHTML = '';
-                    for (let i = 1; i <= 50; i++) {
-                        // ✅ NUEVO: agregar campos celular y método de pago
-                        grid.innerHTML += `
-                            <div class="recuadro">
-                                <strong>Músico ${i}</strong><br>
-                                <input type="text" placeholder="Nombre" id="staff-nombre-${i}">
-                                <div class="moneda-input">
-                                    <input type="number" step="0.01" placeholder="Tarifa/Hora" id="staff-tarifa-${i}" style="width:90px;">
-                                    <span>S/.</span>
-                                </div>
-                                <input type="tel" placeholder="📱 Celular (Yape/Plin)" id="staff-celular-${i}" maxlength="9">
-                                <select id="staff-metodo-${i}">
-                                    <option value="Yape">💜 Yape</option>
-                                    <option value="Plin">💙 Plin</option>
-                                </select>
-                            </div>`;
-                    }
-                    const nombres = Object.keys(App.estado.staff);
-                    nombres.forEach((clave, index) => {
-                        const i = index + 1;
-                        const nombreEl = document.getElementById(`staff-nombre-${i}`);
-                        const tarifaEl = document.getElementById(`staff-tarifa-${i}`);
-                        const celularEl = document.getElementById(`staff-celular-${i}`);
-                        const metodoEl = document.getElementById(`staff-metodo-${i}`);
-                        if(nombreEl && tarifaEl) {
-                            nombreEl.value = App.estado.staff[clave].nombreOriginal;
-                            tarifaEl.value = App.estado.staff[clave].tarifa;
-                            if (celularEl) celularEl.value = App.estado.staff[clave].celular || '';
-                            if (metodoEl) metodoEl.value = App.estado.staff[clave].metodoPago || 'Yape';
-                        }
-                    });
-                },
+            resultados() {
+                const tb=document.getElementById('tabla-resultados-body');
+                if(!tb) return; tb.innerHTML='';
 
-                seleccion() {
-                    const tbody = document.getElementById('tabla-seleccion-body');
-                    if (!tbody) return;
-                    tbody.innerHTML = '';
-                    const cant = App.estado.contratoActual.integrantes + 2;
-                    for (let i = 0; i < cant; i++) {
-                        const valor = App.estado.seleccionados[i] ? App.estado.seleccionados[i].nombreDisplay : '';
-                        const fila = document.createElement('tr');
-                        fila.innerHTML = `<td>${i + 1}</td><td><input type="text" class="input-seleccion" value="${valor}" placeholder="Escribe el nombre..."></td>`;
-                        tbody.appendChild(fila);
-                        const input = fila.querySelector('.input-seleccion');
-                        App.util.activarAutocompletado(input);
-                    }
-                },
+                // Actualiza título dinámico
+                const labelNombre=document.getElementById('label-nombre-contrato');
+                if(labelNombre) labelNombre.textContent=App.estado.contratoActual.nombre||'Presupuesto';
 
-                resultados() {
-                    const tbody = document.getElementById('tabla-resultados-body');
-                    if (!tbody) return;
-                    tbody.innerHTML = '';
-                    let totalBruto = 0, totalAdelantos = 0, totalNeto = 0;
-                    let pagoCesar = 0, pagoTrabajoCesar = 0;
-                    let pagoLidia = 0, pagoTrabajoLidia = 0;
+                let totBruto=0,totNeto=0,pagoCesar=0,brCesar=0,pagoLidia=0,brLidia=0;
 
-                    App.estado.seleccionados.forEach(m => {
-                        let bruto = 0;
-                        let celdaPrecio = '0.00';
-                        let celdaHoras = '0.00';
-                        let celdaBolo = '';
+                App.estado.seleccionados.forEach(m=>{
+                    let bruto=0,cPrecio='0.00',cHoras='0.00',cBolo='';
 
-                        if (m.tipo === 'utilero') {
-                            bruto = m.boloGlobal;
-                            celdaPrecio = 'N/A';
-                            celdaHoras = 'N/A';
-                            celdaBolo = `<input type="number" step="0.01" class="input-tabla bolo" value="${m.boloGlobal}" 
-                                onblur="App.calculos.actualizarCampo(${m.id}, 'boloGlobal', this.value)" 
-                                onkeypress="if(event.key === 'Enter') App.calculos.actualizarCampo(${m.id}, 'boloGlobal', this.value)">`;
-                        } else {
-                            if (m.boloGlobal > 0) {
-                                bruto = m.boloGlobal;
-                                celdaPrecio = 'Fijo';
-                                celdaHoras = 'Fijo';
-                                celdaBolo = `<input type="number" step="0.01" class="input-tabla bolo" value="${m.boloGlobal}" 
-                                    onblur="App.calculos.actualizarCampo(${m.id}, 'boloGlobal', this.value)" 
-                                    onkeypress="if(event.key === 'Enter') App.calculos.actualizarCampo(${m.id}, 'boloGlobal', this.value)">`;
-                            } else {
-                                bruto = m.tarifaHora * m.horasTocadas;
-                                celdaPrecio = `<input type="number" step="0.01" class="input-tabla tarifa" value="${m.tarifaHora}" 
-                                    onblur="App.calculos.actualizarCampo(${m.id}, 'tarifaHora', this.value)" 
-                                    onkeypress="if(event.key === 'Enter') App.calculos.actualizarCampo(${m.id}, 'tarifaHora', this.value)">`;
-                                celdaHoras = `<input type="number" step="0.5" min="0" class="input-tabla horas" value="${m.horasTocadas}" 
-                                    onblur="App.calculos.actualizarCampo(${m.id}, 'horasTocadas', this.value)" 
-                                    onkeypress="if(event.key === 'Enter') App.calculos.actualizarCampo(${m.id}, 'horasTocadas', this.value)">`;
-                            }
-                        }
-
-                        const adelanto = m.adelantoDado;
-                        const neto = bruto - adelanto;
-                        totalBruto += bruto;
-                        totalAdelantos += adelanto;
-                        totalNeto += neto;
-
-                        if (m.nombreDisplay.toLowerCase() === 'césar') {
-                            pagoCesar = neto;
-                            pagoTrabajoCesar = bruto;
-                        }
-                        if (m.nombreDisplay.toLowerCase() === 'lidia') {
-                            pagoLidia = neto;
-                            pagoTrabajoLidia = bruto;
-                        }
-
-                        // ✅ NUEVO: botón de pago con método del staff
-                        const datosPago = App.util.obtenerDatosPago(m.nombreDisplay);
-                        const metodo = datosPago.metodoPago || 'Yape';
-                        const claseBtn = metodo === 'Yape' ? 'yape' : 'plin';
-                        const celdaPagar = datosPago.celular
-                            ? `<button class="btn-pagar ${claseBtn}" onclick="App.util.copiarCelular('${m.nombreDisplay.replace(/'/g, "\\'")}', this)">
-                                📋 ${metodo}<br><small>${datosPago.celular}</small>
-                               </button>`
-                            : `<span style="color:#aaa; font-size:0.8rem;">Sin nro.</span>`;
-
-                        const fila = document.createElement('tr');
-                        if (m.pagado) fila.classList.add('fila-pagada');
-                        fila.innerHTML = `
-                            <td>${m.nombreDisplay}</td>
-                            <td>${celdaPrecio}</td>
-                            <td>${celdaHoras}</td>
-                            <td>${celdaBolo || '-'}</td>
-                            <td><input type="number" step="0.01" class="input-tabla adelanto" value="${adelanto}" 
-                                onblur="App.calculos.actualizarCampo(${m.id}, 'adelantoDado', this.value)" 
-                                onkeypress="if(event.key === 'Enter') App.calculos.actualizarCampo(${m.id}, 'adelantoDado', this.value)"></td>
-                            <td style="font-weight: bold; color: ${m.pagado ? '#155724' : '#28a745'};">S/. ${neto.toFixed(2)}</td>
-                            <td style="text-align:center;">
-                                <input type="checkbox" class="check-pagado" ${m.pagado ? 'checked' : ''} 
-                                    onchange="App.calculos.togglePagado(${m.id})" title="Marcar como pagado">
-                            </td>
-                            <td>${celdaPagar}</td>`;
-                        tbody.appendChild(fila);
-                    });
-
-                    const c = App.estado.contratoActual;
-                    const totalContrato = (c.precioHora * c.horas) + c.movilidadCliente;
-                    const saldoPendiente = totalContrato - c.adelantoCliente;
-                    const totalEgresos = totalBruto + App.estado.gastoMovilidadReal;
-                    const faltaPagar = totalEgresos - saldoPendiente;
-                    const gananciaNeta = App.calculos.calcularGananciaActual();
-
-                    const alertaFalta = document.getElementById('alerta-falta');
-                    const montoFalta = document.getElementById('monto-falta');
-                    if (faltaPagar > 0) {
-                        montoFalta.textContent = faltaPagar.toFixed(2);
-                        alertaFalta.style.display = 'block';
+                    if(m.tipo==='utilero'){
+                        bruto=m.boloGlobal; cPrecio='N/A'; cHoras='N/A';
+                        cBolo=`<input type="number" step="0.01" class="it bolo" value="${m.boloGlobal}"
+                            onblur="App.calculos.actualizarCampo(${m.id},'boloGlobal',this.value)"
+                            onkeypress="if(event.key==='Enter')App.calculos.actualizarCampo(${m.id},'boloGlobal',this.value)">`;
+                    } else if(m.boloGlobal>0){
+                        bruto=m.boloGlobal; cPrecio='Fijo'; cHoras='Fijo';
+                        cBolo=`<input type="number" step="0.01" class="it bolo" value="${m.boloGlobal}"
+                            onblur="App.calculos.actualizarCampo(${m.id},'boloGlobal',this.value)"
+                            onkeypress="if(event.key==='Enter')App.calculos.actualizarCampo(${m.id},'boloGlobal',this.value)">`;
                     } else {
-                        alertaFalta.style.display = 'none';
+                        bruto=m.tarifaHora*m.horasTocadas;
+                        cPrecio=`<input type="number" step="0.01" class="it tarifa" value="${m.tarifaHora}"
+                            onblur="App.calculos.actualizarCampo(${m.id},'tarifaHora',this.value)"
+                            onkeypress="if(event.key==='Enter')App.calculos.actualizarCampo(${m.id},'tarifaHora',this.value)">`;
+                        cHoras=`<input type="number" step="0.5" min="0" class="it horas" value="${m.horasTocadas}"
+                            onblur="App.calculos.actualizarCampo(${m.id},'horasTocadas',this.value)"
+                            onkeypress="if(event.key==='Enter')App.calculos.actualizarCampo(${m.id},'horasTocadas',this.value)">`;
                     }
 
-                    let mensajeSaldo = '';
-                    let colorMensaje = '';
-                    if (saldoPendiente >= totalEgresos) {
-                        mensajeSaldo = '✅ El saldo disponible es suficiente para cubrir todos los pagos y movilidad';
-                        colorMensaje = '#28a745';
-                    } else {
-                        const montoFaltaMsg = (totalEgresos - saldoPendiente).toFixed(2);
-                        mensajeSaldo = `❌ Faltan S/. ${montoFaltaMsg} para cubrir pagos y movilidad`;
-                        colorMensaje = '#dc3545';
-                    }
+                    const neto=bruto-m.adelantoDado;
+                    totBruto+=bruto; totNeto+=neto;
 
-                    const resumenDiv = document.getElementById('resumen-final');
-                    resumenDiv.innerHTML = `
-<div class="recuadro recuadro-saldo">
-    <h3 style="color: #007bff; margin-bottom: 10px;">📊 Resumen Económico</h3>
-    <p><strong>Total del contrato:</strong> S/. ${totalContrato.toFixed(2)}</p>
-    <p><strong>Adelanto recibido del cliente:</strong> S/. ${c.adelantoCliente.toFixed(2)}</p>
-    <p style="font-size: 1.3rem; font-weight: bold; color: #007bff; margin-top: 10px;">Saldo pendiente por cobrar: S/. ${saldoPendiente.toFixed(2)}</p>
+                    const kn=m.nombreDisplay.toLowerCase();
+                    if(kn==='césar'){  pagoCesar=neto; brCesar=bruto; }
+                    if(kn==='lidia'){  pagoLidia=neto; brLidia=bruto; }
+
+                    // Botón pagar
+                    const dp=App.util.obtenerDatosPago(m.nombreDisplay);
+                    const metodo=dp.metodoPago||'Yape';
+                    const cPagar=dp.celular
+                        ?`<button class="btn-pagar ${metodo.toLowerCase()}" onclick="App.util.copiarCelular('${m.nombreDisplay.replace(/'/g,"\\'")}',this)">
+                            📋 ${metodo}<br><small>${dp.celular}</small>
+                           </button>`
+                        :`<span style="font-size:11px;color:#9ca3af;">—</span>`;
+
+                    const tr=document.createElement('tr');
+                    if(m.pagado) tr.classList.add('fila-pagada');
+                    tr.innerHTML=`
+                        <td style="text-align:left;font-weight:600;">${m.nombreDisplay}</td>
+                        <td>${cPrecio}</td>
+                        <td>${cHoras}</td>
+                        <td>${cBolo||'–'}</td>
+                        <td><input type="number" step="0.01" class="it adelanto" value="${m.adelantoDado}"
+                            onblur="App.calculos.actualizarCampo(${m.id},'adelantoDado',this.value)"
+                            onkeypress="if(event.key==='Enter')App.calculos.actualizarCampo(${m.id},'adelantoDado',this.value)"></td>
+                        <td style="font-weight:700;color:${m.pagado?'#15803d':'#16a34a'};">S/.${neto.toFixed(2)}</td>
+                        <td><input type="checkbox" class="check-pagado" ${m.pagado?'checked':''} onchange="App.calculos.togglePagado(${m.id})"></td>
+                        <td>${cPagar}</td>`;
+                    tb.appendChild(tr);
+                });
+
+                const c=App.estado.contratoActual;
+                const totalCt=(c.precioHora*c.horas)+c.movilidadCliente;
+                const saldo=totalCt-c.adelantoCliente;
+                const egresos=totBruto+App.estado.gastoMovilidadReal;
+                const falta=egresos-saldo;
+                const ganancia=App.calculos.calcularGananciaActual();
+
+                // Alerta falta
+                const af=document.getElementById('alerta-falta');
+                const mf=document.getElementById('monto-falta');
+                if(falta>0){ mf.textContent=falta.toFixed(2); af.style.display='block'; }
+                else af.style.display='none';
+
+                const estadoOk=saldo>=egresos;
+                const badgeClass=estadoOk?'badge-ok':'badge-err';
+                const badgeMsg=estadoOk
+                    ?'✅ Saldo suficiente para cubrir pagos y movilidad'
+                    :`❌ Faltan S/. ${(egresos-saldo).toFixed(2)} para cubrir egresos`;
+
+                document.getElementById('resumen-final').innerHTML=`
+<div class="card card-blue" style="margin-bottom:8px;">
+    <h3 style="color:#1d4ed8;margin-bottom:8px;">📊 Resumen Económico</h3>
+    <p style="font-size:.85rem;margin:4px 0;"><strong>Total del contrato:</strong> S/. ${totalCt.toFixed(2)}</p>
+    <p style="font-size:.85rem;margin:4px 0;"><strong>Adelanto del cliente:</strong> S/. ${c.adelantoCliente.toFixed(2)}</p>
+    <p style="font-size:1.1rem;font-weight:800;color:#1d4ed8;margin-top:8px;">Saldo pendiente: S/. ${saldo.toFixed(2)}</p>
 </div>
 
-<div class="recuadro recuadro-egresos">
-    <p><strong>Total a pagar a personal:</strong> S/. ${totalBruto.toFixed(2)}</p>
-    <p><strong>Gasto real en movilidad:</strong> 
-        <input type="number" step="0.01" class="campo-movilidad-editable" value="${App.estado.gastoMovilidadReal}" 
-        onblur="App.calculos.actualizarMovilidad(this.value)" 
-        onkeypress="if(event.key === 'Enter') App.calculos.actualizarMovilidad(this.value)"> S/.
+<div class="card card-amber" style="margin-bottom:8px;">
+    <p style="font-size:.85rem;margin:4px 0;"><strong>Total a pagar al personal:</strong> S/. ${totBruto.toFixed(2)}</p>
+    <p style="font-size:.85rem;margin:6px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <strong>Movilidad real:</strong>
+        <input type="number" step="0.01" class="mov-input" value="${App.estado.gastoMovilidadReal}"
+            onblur="App.calculos.actualizarMovilidad(this.value)"
+            onkeypress="if(event.key==='Enter')App.calculos.actualizarMovilidad(this.value)">
+        <span style="font-size:.8rem;color:var(--muted);">S/.</span>
     </p>
-    <p style="font-size: 1.1rem; font-weight: bold; margin-top: 8px;">Total general de egresos: S/. ${totalEgresos.toFixed(2)}</p>
-    <p style="margin-top:12px; padding:8px; border-radius:4px; background:${colorMensaje}20; color:${colorMensaje}; font-weight:bold;">
-        ${mensajeSaldo}
-    </p>
+    <p style="font-size:1rem;font-weight:700;margin-top:6px;">Total egresos: S/. ${egresos.toFixed(2)}</p>
+    <div class="${badgeClass}" style="margin-top:10px;">${badgeMsg}</div>
 </div>
 
-<div class="recuadro recuadro-ganancia">
-    <h3 style="color: #28a745; margin-bottom: 10px;">💰 Ganancia Neta del Compromiso</h3>
-    <p style="font-size: 1.8rem; font-weight: bold; color: #28a745; text-align: center;">S/. ${gananciaNeta.toFixed(2)}</p>
-
-    <div class="divicion-ganancia">
-        <div class="parte-césar">
-            <h4>César</h4>
-            <p>Ganancia por compromiso: S/. ${(gananciaNeta / 2).toFixed(2)}</p>
-            <p>Pago por trabajo: S/. ${pagoTrabajoCesar.toFixed(2)}</p>
-            <p class="total-final-personal">Total: S/. ${((gananciaNeta / 2) + pagoTrabajoCesar).toFixed(2)}</p>
+<div class="card card-green">
+    <h3 style="color:#15803d;margin-bottom:8px;">💰 Ganancia Neta del Compromiso</h3>
+    <p style="font-size:1.7rem;font-weight:800;color:#15803d;text-align:center;margin:6px 0;">S/. ${ganancia.toFixed(2)}</p>
+    <div class="split-grid">
+        <div class="split-cesar">
+            <strong>César</strong>
+            <p>Ganancia: S/. ${(ganancia/2).toFixed(2)}</p>
+            <p>Trabajo: S/. ${brCesar.toFixed(2)}</p>
+            <span class="split-total">Total: S/. ${((ganancia/2)+brCesar).toFixed(2)}</span>
         </div>
-        <div class="parte-lidia">
-            <h4>Lidia</h4>
-            <p>Ganancia por compromiso: S/. ${(gananciaNeta / 2).toFixed(2)}</p>
-            <p>Pago por trabajo: S/. ${pagoTrabajoLidia.toFixed(2)}</p>
-            <p class="total-final-personal">Total: S/. ${((gananciaNeta / 2) + pagoTrabajoLidia).toFixed(2)}</p>
+        <div class="split-lidia">
+            <strong>Lidia</strong>
+            <p>Ganancia: S/. ${(ganancia/2).toFixed(2)}</p>
+            <p>Trabajo: S/. ${brLidia.toFixed(2)}</p>
+            <span class="split-total">Total: S/. ${((ganancia/2)+brLidia).toFixed(2)}</span>
         </div>
     </div>
 </div>`;
 
-                    const btnAccion = document.getElementById('btn-accion-principal');
-                    btnAccion.textContent = App.estado.contratoEditandoIndex === -1 ? 'Guardar Compromiso' : 'Actualizar Compromiso';
-                },
+                // Link contrato guardado
+                this.mostrarLinkContrato(App.estado.contratoActual.urlContrato||'');
 
-                historial() {
-                    const lista = document.getElementById('lista-contratos');
-                    if (!lista) return;
-                    lista.innerHTML = '';
-
-                    const listaOrdenada = App.util.ordenarPorFechaEvento(App.estado.contratos);
-                    if (listaOrdenada.length === 0) {
-                        lista.innerHTML = `<li class="recuadro">No hay compromisos guardados todavía</li>`;
-                        return;
-                    }
-
-                    listaOrdenada.forEach((contrato, index) => {
-                        const fechaTexto = App.util.formatearFecha(contrato.datos.fechaContrato);
-                        const esPasado = App.util.esFechaPasada(contrato.datos.fechaContrato);
-                        const claseFecha = esPasado ? 'texto-vencido' : 'texto-activo';
-
-                        const item = document.createElement('li');
-                        item.className = 'item-contrato';
-                        item.innerHTML = `
-                            <div class="contrato-info" onclick="App.controlador.editarContrato(${index})">
-                                <span class="numero-lista">${index + 1}.</span>
-                                <strong>${contrato.datos.nombre}</strong><br>
-                                <span class="${claseFecha}">📅 ${fechaTexto}</span> | 
-                                <span>⏰ ${App.util.formatearHorario(contrato.datos.horaInicio, contrato.datos.horaFin)}</span><br>
-                                <span>Total: S/. ${((contrato.datos.precioHora * contrato.datos.horas) + contrato.datos.movilidadCliente).toFixed(2)}</span> |
-                                <span>Ganancia: <strong style="color: #28a745;">S/. ${contrato.gananciaNeta.toFixed(2)}</strong></span>
-                            </div>
-                            <div class="contrato-acciones">
-                                <button class="btn-eliminar" onclick="App.controlador.eliminarContrato(${index})">🗑️</button>
-                            </div>`;
-                        lista.appendChild(item);
-                    });
-                },
-
-                resumenFinanciero() {
-                    const contenedor = document.getElementById('contenedor-ganancias-mensuales');
-                    if (!contenedor) return;
-                    contenedor.innerHTML = '';
-
-                    const gananciasPorMes = {};
-                    let totalAnual = 0;
-
-                    App.estado.contratos.forEach(contrato => {
-                        if (!contrato.datos.fechaContrato) return;
-                        const fecha = new Date(contrato.datos.fechaContrato);
-                        const mesAnio = fecha.toLocaleDateString('es-ES', { year: 'numeric', month: 'long' });
-                        if (!gananciasPorMes[mesAnio]) {
-                            gananciasPorMes[mesAnio] = { totalMes: 0, cesarMes: 0, lidiaMes: 0, eventos: [] };
-                        }
-                        const gananciaEvento = contrato.gananciaNeta;
-                        gananciasPorMes[mesAnio].totalMes += gananciaEvento;
-                        gananciasPorMes[mesAnio].cesarMes += gananciaEvento / 2;
-                        gananciasPorMes[mesAnio].lidiaMes += gananciaEvento / 2;
-                        gananciasPorMes[mesAnio].eventos.push({
-                            nombre: contrato.datos.nombre,
-                            fecha: App.util.formatearFecha(contrato.datos.fechaContrato),
-                            ganancia: gananciaEvento
-                        });
-                        totalAnual += gananciaEvento;
-                    });
-
-                    const mesesOrdenados = Object.keys(gananciasPorMes).sort((a, b) => new Date(a) - new Date(b));
-
-                    mesesOrdenados.forEach((mes, indice) => {
-                        const datosMes = gananciasPorMes[mes];
-                        const idMes = `mes-${indice}`;
-
-                        contenedor.innerHTML += `
-                            <div class="titulo-mes" onclick="App.render.toggleMes('${idMes}')">
-                                ${mes.toUpperCase()}
-                                <span class="icono-desplegable" id="icono-${idMes}">▼</span>
-                            </div>
-                            <div class="contenedor-eventos" id="${idMes}">
-                                <p class="monto-ganancia">GANANCIA TOTAL DEL MES: S/. ${datosMes.totalMes.toFixed(2)}</p>
-                                <p style="color:#2563eb; font-weight:bold;">Parte de César: S/. ${datosMes.cesarMes.toFixed(2)}</p>
-                                <p style="color:#db2777; font-weight:bold;">Parte de Lidia: S/. ${datosMes.lidiaMes.toFixed(2)}</p>
-                                <hr style="margin:10px 0;">
-                                <p style="font-weight:bold; margin-bottom:8px;">Detalles por compromiso:</p>
-                                ${datosMes.eventos.map(ev => `
-                                    <div class="evento-item">
-                                        <strong>${ev.nombre}</strong> - ${ev.fecha}<br>
-                                        Ganancia: S/. ${ev.ganancia.toFixed(2)}
-                                        <div class="ganancia-socio">César: S/. ${(ev.ganancia / 2).toFixed(2)} | Lidia: S/. ${(ev.ganancia / 2).toFixed(2)}</div>
-                                    </div>`).join('')}
-                            </div>`;
-                    });
-
-                    contenedor.innerHTML += `<div class="total-anual">TOTAL ANUAL: S/. ${totalAnual.toFixed(2)}</div>`;
-                },
-
-                toggleMes(idMes) {
-                    const contenedor = document.getElementById(idMes);
-                    const icono = document.getElementById(`icono-${idMes}`);
-                    if (contenedor.style.display === 'block') {
-                        contenedor.style.display = 'none';
-                        icono.textContent = '▼';
-                    } else {
-                        contenedor.style.display = 'block';
-                        icono.textContent = '▲';
-                    }
-                }
+                const btn=document.getElementById('btn-accion-principal');
+                btn.textContent=App.estado.contratoEditandoIndex===-1?'💾 Guardar Compromiso':'🔄 Actualizar Compromiso';
             },
 
-            adelantos: {
-                actualizarDetalle() {
-                    const tbody = document.getElementById('tabla-adelantos-body');
-                    if (!tbody) return;
-                    tbody.innerHTML = '';
-                    let totalVigentes = 0;
-
-                    App.estado.contratos.forEach(contrato => {
-                        const esPasado = App.util.esFechaPasada(contrato.datos.fechaContrato);
-                        const estadoTexto = esPasado ? '✅ Completado' : '⏳ Vigente';
-                        const claseEstado = esPasado ? 'texto-inactivo' : 'texto-activo';
-                        const fechaFirma = App.util.formatearFecha(contrato.datos.fechaFirma);
-                        const horario = App.util.formatearHorario(contrato.datos.horaInicio, contrato.datos.horaFin);
-
-                        const fila = document.createElement('tr');
-                        fila.className = claseEstado;
-                        fila.innerHTML = `
-                            <td>${estadoTexto}</td>
-                            <td>${fechaFirma}</td>
-                            <td>${horario}</td>
-                            <td>${contrato.datos.nombre}</td>
-                            <td>S/. ${contrato.datos.adelantoCliente.toFixed(2)}</td>`;
-                        tbody.appendChild(fila);
-
-                        if (!esPasado) totalVigentes += contrato.datos.adelantoCliente;
-                    });
-
-                    document.getElementById('total-adelantos-vigentes').textContent = totalVigentes.toFixed(2);
-                    document.getElementById('total-caja-adelantos').textContent = `S/. ${totalVigentes.toFixed(2)}`;
-                    document.getElementById('total-caja-fecha').textContent = `S/. ${totalVigentes.toFixed(2)}`;
-                }
+            mostrarLinkContrato(url) {
+                const el=document.getElementById('link-contrato-guardado');
+                if(!el) return;
+                el.innerHTML=url
+                    ?`<a href="${url}" target="_blank" class="ver-contrato-btn">👁️ Ver Contrato</a>`
+                    :'';
             },
 
-            pdf: {
-                async exportar() {
-                    const { jsPDF } = window.jspdf;
-                    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-                    const c = App.estado.contratoActual;
-                    const fechaActual = new Date().toLocaleDateString('es-ES');
+            historial() {
+                const lista=document.getElementById('lista-contratos');
+                if(!lista) return; lista.innerHTML='';
+                const ord=App.util.ordenarPorFechaEvento(App.estado.contratos);
+                if(!ord.length){ lista.innerHTML=`<li class="card">No hay compromisos guardados todavía.</li>`; return; }
+                ord.forEach((ct,i)=>{
+                    const fecha=App.util.formatearFecha(ct.datos.fechaContrato);
+                    const pasado=App.util.esFechaPasada(ct.datos.fechaContrato);
+                    const clFecha=pasado?'texto-vencido':'texto-activo';
+                    const linkCt=ct.datos.urlContrato
+                        ?`<a href="${ct.datos.urlContrato}" target="_blank" class="ver-contrato-btn">👁️ Ver Contrato</a>`:'';
+                    const li=document.createElement('li');
+                    li.className=`item-contrato${pasado?' pasado':''}`;
+                    li.innerHTML=`
+                        <div class="contrato-info" onclick="App.controlador.editarContrato(${i})">
+                            <span class="numero-lista">${i+1}.</span><strong>${ct.datos.nombre}</strong><br>
+                            <span class="${clFecha}">📅 ${fecha}</span> <span>⏰ ${App.util.formatearHorario(ct.datos.horaInicio,ct.datos.horaFin)}</span><br>
+                            <span>Total: S/. ${((ct.datos.precioHora*ct.datos.horas)+ct.datos.movilidadCliente).toFixed(2)}</span>
+                            <span style="color:var(--green);font-weight:700;"> · Gan: S/. ${ct.gananciaNeta.toFixed(2)}</span>
+                            ${linkCt?`<br>${linkCt}`:''}
+                        </div>
+                        <div>
+                            <button class="btn-danger btn-xs" onclick="App.controlador.eliminarContrato(${i})">🗑</button>
+                        </div>`;
+                    lista.appendChild(li);
+                });
+            },
 
-                    doc.setFontSize(16);
-                    doc.text(`Presupuesto: ${c.nombre}`, 10, 15);
-                    doc.setFontSize(12);
-                    doc.text(`Fecha de emisión: ${fechaActual}`, 10, 22);
-                    doc.text(`Fecha del evento: ${App.util.formatearFecha(c.fechaContrato)}`, 10, 28);
-                    doc.text(`Horario: ${App.util.formatearHorario(c.horaInicio, c.horaFin)}`, 10, 34);
+            resumenFinanciero() {
+                const cont=document.getElementById('contenedor-ganancias-mensuales');
+                if(!cont) return; cont.innerHTML='';
+                const porMes={}; let totalAnual=0;
 
-                    doc.setFontSize(14);
-                    doc.text('Detalle de pagos', 10, 45);
+                App.estado.contratos.forEach(ct=>{
+                    if(!ct.datos.fechaContrato) return;
+                    const dObj=new Date(ct.datos.fechaContrato);
+                    const claveOrden=`${dObj.getFullYear()}-${String(dObj.getMonth()+1).padStart(2,'0')}`;
+                    const label=dObj.toLocaleDateString('es-ES',{year:'numeric',month:'long'});
+                    if(!porMes[claveOrden]) porMes[claveOrden]={label,totalMes:0,cesarMes:0,lidiaMes:0,eventos:[]};
+                    const g=ct.gananciaNeta;
+                    porMes[claveOrden].totalMes+=g; porMes[claveOrden].cesarMes+=g/2; porMes[claveOrden].lidiaMes+=g/2;
+                    porMes[claveOrden].eventos.push({nombre:ct.datos.nombre,fecha:App.util.formatearFecha(ct.datos.fechaContrato),fechaRaw:ct.datos.fechaContrato,ganancia:g});
+                    totalAnual+=g;
+                });
 
-                    let y = 52;
-                    doc.setFontSize(10);
-                    doc.text('Músico', 10, y); doc.text('Precio/h', 55, y); doc.text('Horas', 85, y);
-                    doc.text('Bolo', 105, y); doc.text('Adelanto', 125, y); doc.text('Neto', 145, y);
-                    y += 6;
+                // Orden ascendente: la clave "YYYY-MM" se ordena correctamente con localeCompare
+                Object.keys(porMes).sort((a,b)=>b.localeCompare(a)).forEach((clave,i)=>{
+                    const d=porMes[clave]; const id=`mes-${i}`;
+                    const mes=d.label;
+                    cont.innerHTML+=`
+                    <div class="titulo-mes" onclick="App.render.toggleMes('${id}')">
+                        ${mes.toUpperCase()} · S/. ${d.totalMes.toFixed(2)}
+                        <span class="icono-desplegable" id="ico-${id}">▼</span>
+                    </div>
+                    <div class="contenedor-eventos" id="${id}">
+                        <p class="monto-ganancia">Ganancia total: S/. ${d.totalMes.toFixed(2)}</p>
+                        <p style="color:#1d4ed8;font-weight:700;font-size:.85rem;">César: S/. ${d.cesarMes.toFixed(2)}</p>
+                        <p style="color:#db2777;font-weight:700;font-size:.85rem;">Lidia: S/. ${d.lidiaMes.toFixed(2)}</p>
+                        <hr>
+                        ${d.eventos.sort((a,b)=>new Date(b.fechaRaw)-new Date(a.fechaRaw)).map(ev=>`
+                        <div class="evento-item">
+                            <strong>${ev.nombre}</strong> – ${ev.fecha}<br>
+                            Gan: S/. ${ev.ganancia.toFixed(2)}
+                            <div class="ganancia-socio">César: S/. ${(ev.ganancia/2).toFixed(2)} | Lidia: S/. ${(ev.ganancia/2).toFixed(2)}</div>
+                        </div>`).join('')}
+                    </div>`;
+                });
+                cont.innerHTML+=`<div class="total-anual">TOTAL ANUAL: S/. ${totalAnual.toFixed(2)}</div>`;
+            },
 
-                    App.estado.seleccionados.forEach(m => {
-                        const bruto = m.boloGlobal > 0 ? m.boloGlobal : m.tarifaHora * m.horasTocadas;
-                        const neto = bruto - m.adelantoDado;
-                        doc.text(m.nombreDisplay, 10, y);
-                        doc.text(m.tarifaHora > 0 ? `S/. ${m.tarifaHora.toFixed(2)}` : 'N/A', 55, y);
-                        doc.text(m.horasTocadas > 0 ? m.horasTocadas.toString() : 'N/A', 85, y);
-                        doc.text(m.boloGlobal > 0 ? `S/. ${m.boloGlobal.toFixed(2)}` : '-', 105, y);
-                        doc.text(`S/. ${m.adelantoDado.toFixed(2)}`, 125, y);
-                        doc.text(`S/. ${neto.toFixed(2)}`, 145, y);
-                        y += 6;
-                    });
-
-                    const totalContrato = (c.precioHora * c.horas) + c.movilidadCliente;
-                    const totalBruto = App.estado.seleccionados.reduce((sum, m) => sum + (m.boloGlobal > 0 ? m.boloGlobal : m.tarifaHora * m.horasTocadas), 0);
-                    const ganancia = App.calculos.calcularGananciaActual();
-
-                    y += 4;
-                    doc.setFontSize(12);
-                    doc.text('Resumen Económico', 10, y); y += 6;
-                    doc.text(`Total del contrato: S/. ${totalContrato.toFixed(2)}`, 10, y); y += 6;
-                    doc.text(`Adelanto recibido: S/. ${c.adelantoCliente.toFixed(2)}`, 10, y); y += 6;
-                    doc.text(`Total a personal: S/. ${totalBruto.toFixed(2)}`, 10, y); y += 6;
-                    doc.text(`Movilidad: S/. ${App.estado.gastoMovilidadReal.toFixed(2)}`, 10, y); y += 6;
-                    doc.text(`Ganancia neta: S/. ${ganancia.toFixed(2)}`, 10, y);
-
-                    doc.save(`Presupuesto_${c.nombre.replace(/\s+/g, '_')}_${fechaActual.replace(/\//g, '-')}.pdf`);
-                }
+            toggleMes(id) {
+                const el=document.getElementById(id); const ic=document.getElementById(`ico-${id}`);
+                if(el.style.display==='block'){ el.style.display='none'; ic.textContent='▼'; }
+                else { el.style.display='block'; ic.textContent='▲'; }
             }
-        };
+        },
 
-        window.onload = () => App.init();
-    </script>
+        adelantos: {
+            actualizarDetalle() {
+                const tb=document.getElementById('tabla-adelantos-body');
+                if(!tb) return; tb.innerHTML='';
+                let vigentes=0;
+                const ordenados=[...App.estado.contratos].sort((a,b)=>{
+                    const fa=a.datos.fechaContrato?new Date(a.datos.fechaContrato):new Date(0);
+                    const fb=b.datos.fechaContrato?new Date(b.datos.fechaContrato):new Date(0);
+                    return fb-fa; // más reciente arriba
+                });
+                ordenados.forEach(ct=>{
+                    const pasado=App.util.esFechaPasada(ct.datos.fechaContrato);
+                    const tr=document.createElement('tr');
+                    tr.className=pasado?'texto-vencido':'texto-activo';
+                    tr.innerHTML=`
+                        <td>${pasado?'✅ Completado':'⏳ Vigente'}</td>
+                        <td>${App.util.formatearFecha(ct.datos.fechaContrato)}</td>
+                        <td>${App.util.formatearHorario(ct.datos.horaInicio,ct.datos.horaFin)}</td>
+                        <td>${ct.datos.nombre}</td>
+                        <td>S/. ${ct.datos.adelantoCliente.toFixed(2)}</td>`;
+                    tb.appendChild(tr);
+                    if(!pasado) vigentes+=ct.datos.adelantoCliente;
+                });
+                ['total-adelantos-vigentes'].forEach(id=>{
+                    const el=document.getElementById(id); if(el) el.textContent=vigentes.toFixed(2);
+                });
+                const tca=document.getElementById('total-caja-adelantos');
+                const tcf=document.getElementById('total-caja-fecha');
+                if(tca) tca.textContent=`S/. ${vigentes.toFixed(2)}`;
+                if(tcf) tcf.textContent=`S/. ${vigentes.toFixed(2)}`;
+            }
+        },
+
+        pdf: {
+            async exportar() {
+                const {jsPDF}=window.jspdf;
+                const doc=new jsPDF({unit:'mm',format:'a4'});
+                const c=App.estado.contratoActual;
+                const hoy=new Date().toLocaleDateString('es-ES');
+                let y=15;
+                doc.setFontSize(16); doc.text(`Presupuesto: ${c.nombre}`,10,y); y+=7;
+                doc.setFontSize(11);
+                doc.text(`Emisión: ${hoy}`,10,y); y+=6;
+                doc.text(`Evento: ${App.util.formatearFecha(c.fechaContrato)}`,10,y); y+=6;
+                doc.text(`Horario: ${App.util.formatearHorario(c.horaInicio,c.horaFin)}`,10,y); y+=10;
+                doc.setFontSize(13); doc.text('Detalle de pagos',10,y); y+=7;
+                doc.setFontSize(9);
+                ['Músico','S//h','Horas','Bolo','Adelanto','Neto'].forEach((h,i)=>doc.text(h,[10,45,70,95,115,135][i],y));
+                y+=5;
+                App.estado.seleccionados.forEach(m=>{
+                    const b=m.boloGlobal>0?m.boloGlobal:m.tarifaHora*m.horasTocadas;
+                    const n=b-m.adelantoDado;
+                    doc.text(m.nombreDisplay,10,y);
+                    doc.text(m.tarifaHora>0?`S/.${m.tarifaHora.toFixed(2)}`:'N/A',45,y);
+                    doc.text(m.horasTocadas>0?String(m.horasTocadas):'N/A',70,y);
+                    doc.text(m.boloGlobal>0?`S/.${m.boloGlobal.toFixed(2)}`:'-',95,y);
+                    doc.text(`S/.${m.adelantoDado.toFixed(2)}`,115,y);
+                    doc.text(`S/.${n.toFixed(2)}`,135,y);
+                    y+=5;
+                });
+                y+=4;
+                const totalCt=(c.precioHora*c.horas)+c.movilidadCliente;
+                const totB=App.estado.seleccionados.reduce((s,m)=>s+(m.boloGlobal>0?m.boloGlobal:m.tarifaHora*m.horasTocadas),0);
+                const gan=App.calculos.calcularGananciaActual();
+                doc.setFontSize(11);
+                [`Total contrato: S/. ${totalCt.toFixed(2)}`,
+                 `Adelanto: S/. ${c.adelantoCliente.toFixed(2)}`,
+                 `Total personal: S/. ${totB.toFixed(2)}`,
+                 `Movilidad: S/. ${App.estado.gastoMovilidadReal.toFixed(2)}`,
+                 `Ganancia neta: S/. ${gan.toFixed(2)}`
+                ].forEach(txt=>{ doc.text(txt,10,y); y+=6; });
+                doc.save(`Presupuesto_${c.nombre.replace(/\s+/g,'_')}_${hoy.replace(/\//g,'-')}.pdf`);
+            }
+        }
+    };
+
+    window.onload = () => App.init();
+</script>
 </body>
 </html>
