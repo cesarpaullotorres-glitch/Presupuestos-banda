@@ -706,7 +706,7 @@
                 return [...arr].sort((a,b) => {
                     const fa = a.datos.fechaContrato ? new Date(a.datos.fechaContrato) : new Date(0);
                     const fb = b.datos.fechaContrato ? new Date(b.datos.fechaContrato) : new Date(0);
-                    return fa-fb;
+                    return fb-fa;
                 });
             },
             obtenerDatosPago(nombre) {
