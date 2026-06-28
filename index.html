@@ -18,7 +18,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 
     <style>
         /* ── TOKENS BoloBand ── */
@@ -427,14 +426,13 @@
 
     <div id="resumen-final"></div>
 
-    <!-- ✅ DOCUMENTACIÓN DEL CONTRATO (FIREBASE STORAGE) -->
+    <!-- ✅ DOCUMENTACIÓN DEL CONTRATO (Google Drive) -->
     <div class="card" style="margin-top:10px;">
         <h3 style="margin-bottom:8px;">📄 Documentación del Contrato</h3>
-        <div class="upload-box">
-            <p>Sube la foto o PDF del contrato físico</p>
-            <input type="file" id="input-archivo-contrato" accept="image/*,application/pdf">
-            <button class="btn-blue btn-sm" style="margin-top:8px;" onclick="App.storage.subirContrato()">⬆️ Subir archivo</button>
-            <div class="upload-progress" id="upload-progress">Subiendo...</div>
+        <p class="nota">Sube tu contrato a Google Drive, copia el enlace y pégalo aquí</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="url" id="input-url-contrato" placeholder="Pega aquí el enlace de Google Drive..." style="margin-bottom:0;flex:1;min-width:200px;">
+            <button class="btn-blue btn-sm" onclick="App.storage.guardarUrlContrato()" style="margin:0;white-space:nowrap;">💾 Guardar enlace</button>
         </div>
         <div id="link-contrato-guardado" style="margin-top:8px;"></div>
     </div>
@@ -527,7 +525,6 @@
 
     firebase.initializeApp(firebaseConfig);
     const db      = firebase.database();
-    const storage = firebase.storage();
     const datosRef = db.ref('app_presupuestos');
 
     // ═══ SERVICE WORKER REGISTRATION ═══
@@ -631,30 +628,16 @@
             if (document.getElementById('tabla-adelantos-body')?.offsetParent)        this.adelantos.actualizarDetalle();
         },
 
-        // ── FIREBASE STORAGE (subida de archivo) ──
+        // ── ENLACE CONTRATO (Google Drive) ──
         storage: {
-            async subirContrato() {
-                const input = document.getElementById('input-archivo-contrato');
-                const file  = input?.files?.[0];
-                if (!file) { alert('Selecciona un archivo primero.'); return; }
-
-                const c    = App.estado.contratoActual;
-                const name = `contratos/${c.nombre.replace(/\s+/g,'_')}_${Date.now()}_${file.name}`;
-                const ref  = storage.ref().child(name);
-
-                const prog = document.getElementById('upload-progress');
-                prog.style.display = 'block';
-                prog.textContent = 'Subiendo...';
-
-                try {
-                    const snap = await ref.put(file);
-                    const url  = await snap.ref.getDownloadURL();
-                    App.estado.contratoActual.urlContrato = url;
-                    prog.textContent = '✅ Subido correctamente';
-                    App.render.mostrarLinkContrato(url);
-                } catch(e) {
-                    prog.textContent = '❌ Error: ' + e.message;
-                }
+            guardarUrlContrato() {
+                const input = document.getElementById('input-url-contrato');
+                const url = input?.value.trim();
+                if (!url) { alert('Pega el enlace de Google Drive primero.'); return; }
+                if (!url.startsWith('http')) { alert('El enlace no es válido.'); return; }
+                App.estado.contratoActual.urlContrato = url;
+                App.render.mostrarLinkContrato(url);
+                alert('✅ Enlace guardado. Recuerda guardar el compromiso.');
             }
         },
 
