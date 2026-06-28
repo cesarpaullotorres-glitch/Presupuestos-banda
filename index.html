@@ -652,10 +652,15 @@
         util: {
             esFechaPasada(f) {
                 if (!f) return true;
-                const h = new Date(); h.setHours(0,0,0,0);
-                const fecha = new Date(f);
-                fecha.setHours(0,0,0,0);
-                return fecha < h;
+                // Parsear fecha como local para evitar problema de zona horaria
+                const partes = f.split('-');
+                const año = parseInt(partes[0]);
+                const mes = parseInt(partes[1]) - 1;
+                const dia = parseInt(partes[2]);
+                const fechaEvento = new Date(año, mes, dia); // medianoche local
+                const hoy = new Date(); hoy.setHours(0,0,0,0);
+                // Se tacha solo a partir del día SIGUIENTE
+                return fechaEvento < hoy;
             },
             formatearFecha(f) {
                 if (!f || f.length < 10) return "Sin fecha";
