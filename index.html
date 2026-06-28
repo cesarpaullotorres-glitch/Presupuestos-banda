@@ -653,7 +653,9 @@
             esFechaPasada(f) {
                 if (!f) return true;
                 const h = new Date(); h.setHours(0,0,0,0);
-                return new Date(f) < h;
+                const fecha = new Date(f);
+                fecha.setHours(0,0,0,0);
+                return fecha < h;
             },
             formatearFecha(f) {
                 if (!f || f.length < 10) return "Sin fecha";
