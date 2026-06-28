@@ -46,7 +46,7 @@
         /* ── RESET ── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif;
-                     background: var(--bg); color: var(--text); font-size: 14px; }
+                     background: var(--bg); color: var(--text); font-size: 16px; }
 
         /* ── SPLASH BoloBand ── */
         #splash-screen {
@@ -72,8 +72,8 @@
         .pantalla.activa { display: block; }
 
         /* ── TIPOGRAFÍA ── */
-        h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; color: var(--accent); letter-spacing: -.01em; }
-        h3 { font-size: .95rem; font-weight: 700; }
+        h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 10px; color: var(--accent); letter-spacing: -.01em; }
+        h3 { font-size: 1.05rem; font-weight: 700; }
         .titulo-pantalla-evento {
             text-align: center; margin-bottom: 14px;
         }
@@ -99,8 +99,8 @@
 
         /* ── FORMS ── */
         input, select {
-            padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--r);
-            width: 100%; margin-bottom: 8px; font-size: 14px;
+            padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r);
+            width: 100%; margin-bottom: 10px; font-size: 15px;
             background: var(--surface); color: var(--text); outline: none;
             transition: border-color .15s;
         }
@@ -126,7 +126,7 @@
 
         /* ── BOTONES ── */
         button {
-            padding: 8px 14px; cursor: pointer; font-size: 13px; font-weight: 600;
+            padding: 10px 16px; cursor: pointer; font-size: 14px; font-weight: 600;
             border: none; border-radius: var(--r); transition: filter .15s, transform .1s;
             background: var(--accent); color: #fff; margin: 3px;
         }
@@ -140,7 +140,7 @@
         .btn-purple { background: var(--purple); }
         .btn-blue   { background: var(--accent); }
         .btn-copper { background: var(--copper); color: #fff; }
-        .btn-sm     { padding: 5px 10px; font-size: 12px; }
+        .btn-sm     { padding: 7px 12px; font-size: 13px; }
         .btn-xs     { padding: 3px 7px; font-size: 11px; }
 
         /* Floating save */
@@ -164,9 +164,9 @@
 
         /* ── TABLA RESULTADOS ── */
         .tabla-wrap { overflow-x: auto; margin: 8px 0; -webkit-overflow-scrolling: touch; }
-        table { border-collapse: collapse; width: 100%; font-size: .82rem; background: var(--surface); }
-        th, td { border: 1px solid var(--border); padding: 6px 7px; text-align: center; vertical-align: middle; }
-        th { background: #f8fafc; font-weight: 700; font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+        table { border-collapse: collapse; width: 100%; font-size: .92rem; background: var(--surface); }
+        th, td { border: 1px solid var(--border); padding: 8px 9px; text-align: center; vertical-align: middle; }
+        th { background: #f8fafc; font-weight: 700; font-size: .85rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
         tr.fila-pagada td { background: #dcfce7; }
 
         /* inputs dentro de tabla */
@@ -200,8 +200,8 @@
             display: flex; justify-content: space-between; align-items: center; gap: 8px;
         }
         .contrato-info { flex: 1; text-align: left; cursor: pointer; line-height: 1.55; }
-        .contrato-info strong { font-size: .95rem; }
-        .contrato-info span { font-size: .8rem; color: var(--muted); }
+        .contrato-info strong { font-size: 1.05rem; }
+        .contrato-info span { font-size: .9rem; color: var(--muted); }
         .texto-vencido { color: #9ca3af; text-decoration: line-through; text-decoration-thickness: 2px; }
         .item-contrato.pasado .contrato-info strong,
         .item-contrato.pasado .contrato-info span {
@@ -276,7 +276,7 @@
         @media (max-width: 400px) { .split-grid { grid-template-columns: 1fr; } }
 
         /* ── NOTA / SUBTEXTO ── */
-        .nota { color: var(--muted); font-size: .78rem; margin: 4px 0 10px; }
+        .nota { color: var(--muted); font-size: .88rem; margin: 4px 0 10px; }
         .total-texto { font-size: .95rem; font-weight: 700; text-align: right; margin: 10px 4px; }
 
         /* ── UPLOAD CONTRATO ── */
@@ -444,14 +444,22 @@
 
 <!-- P7: HISTORIAL -->
 <div id="pantalla-historial" class="pantalla">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-        <h2 id="titulo-historial" style="margin:0;">Contratos</h2>
+    <!-- Título -->
+    <h2 id="titulo-historial" style="margin-bottom:12px;">Contratos</h2>
+
+    <!-- Pestañas de navegación -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
         <button class="btn-copper btn-sm" onclick="App.navegacion.irA('pantalla-resumen-financiero')">💰 Ganancias</button>
+        <button class="btn-blue btn-sm" onclick="App.navegacion.irA('pantalla-adelantos')">📋 Adelantos</button>
+        <button class="btn-amber btn-sm" onclick="App.controlador.editarStaff()">👥 Staff</button>
     </div>
+
+    <!-- Lista de contratos -->
     <ul id="lista-contratos" class="lista-contratos"></ul>
-    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn-green" onclick="App.controlador.nuevoContrato()">➕ Nuevo Contrato</button>
-        <button class="btn-amber" onclick="App.controlador.editarStaff()">👥 Editar Staff</button>
+
+    <!-- Botón nuevo contrato -->
+    <div style="margin-top:12px;">
+        <button class="btn-green" onclick="App.controlador.nuevoContrato()" style="width:100%;padding:12px;font-size:15px;">➕ Nuevo Contrato</button>
     </div>
 </div>
 
