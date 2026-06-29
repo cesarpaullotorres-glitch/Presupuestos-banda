@@ -437,6 +437,17 @@
         <div id="link-contrato-guardado" style="margin-top:8px;"></div>
     </div>
 
+    <!-- ✅ OBSERVACIONES -->
+    <div class="card" style="margin-top:10px;">
+        <h3 style="margin-bottom:8px;">📝 Observaciones</h3>
+        <textarea id="input-observaciones" 
+            placeholder="Ej: El contrato original era por 5 horas pero salió una hora más..." 
+            style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--r);
+            font-size:14px;min-height:100px;resize:vertical;font-family:inherit;margin-bottom:8px;"
+            onblur="App.storage.guardarObservaciones(this.value)"></textarea>
+        <button class="btn-blue btn-sm" onclick="App.storage.guardarObservaciones(document.getElementById('input-observaciones').value)">💾 Guardar observaciones</button>
+    </div>
+
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
         <button id="btn-accion-principal" onclick="App.controlador.accionPrincipal()" class="btn-green"></button>
     </div>
@@ -548,7 +559,7 @@
                 nombre:"", fechaFirma:"", fechaContrato:"",
                 horaInicio:"", horaFin:"",
                 horas:0, integrantes:0, precioHora:0, movilidadCliente:0, adelantoCliente:0,
-                urlContrato: ""
+                urlContrato: "", observaciones: ""
             },
             seleccionados: [],
             contratos: [],
@@ -636,7 +647,7 @@
             if (document.getElementById('tabla-adelantos-body')?.offsetParent)        this.adelantos.actualizarDetalle();
         },
 
-        // ── ENLACE CONTRATO (Google Drive) ──
+        // ── ENLACE CONTRATO (Google Drive) + OBSERVACIONES ──
         storage: {
             guardarUrlContrato() {
                 const input = document.getElementById('input-url-contrato');
@@ -646,6 +657,10 @@
                 App.estado.contratoActual.urlContrato = url;
                 App.render.mostrarLinkContrato(url);
                 alert('✅ Enlace guardado. Recuerda guardar el compromiso.');
+            },
+            guardarObservaciones(texto) {
+                App.estado.contratoActual.observaciones = texto.trim();
+                alert('✅ Observaciones guardadas. Recuerda guardar el compromiso.');
             }
         },
 
@@ -810,6 +825,7 @@
                 c.precioHora       = App.util.num(document.getElementById('input-precio-hora').value);
                 c.movilidadCliente = App.util.num(document.getElementById('input-movilidad').value);
                 c.adelantoCliente  = App.util.num(document.getElementById('input-adelanto-cliente').value);
+                c.observaciones = document.getElementById('input-observaciones').value.trim() || "";
                 if (App.estado.contratoEditandoIndex===-1) App.estado.gastoMovilidadReal = c.movilidadCliente;
                 App.render.seleccion();
                 App.navegacion.irA('pantalla-seleccion');
@@ -868,7 +884,7 @@
                 App.estado.seleccionados=[]; App.estado.gastoMovilidadReal=0;
                 ['input-nombre-contrato','input-fecha-firma','input-fecha-contrato','input-hora-inicio',
                  'input-hora-fin','input-horas','input-cant-integrantes','input-precio-hora',
-                 'input-movilidad','input-adelanto-cliente'].forEach(id=>{
+                 'input-movilidad','input-adelanto-cliente','input-observaciones'].forEach(id=>{
                     const el=document.getElementById(id); if(el) el.value='';
                 });
                 App.navegacion.irA('pantalla-contrato');
@@ -895,6 +911,8 @@
                 document.getElementById('input-precio-hora').value       = ct.datos.precioHora||0;
                 document.getElementById('input-movilidad').value         = ct.datos.movilidadCliente||0;
                 document.getElementById('input-adelanto-cliente').value  = ct.datos.adelantoCliente||0;
+                const obsEl = document.getElementById('input-observaciones');
+                if (obsEl) obsEl.value = ct.datos.observaciones || "";
                 App.calculos.actualizarTodo();
                 App.navegacion.irA('pantalla-resultados');
             },
@@ -1111,6 +1129,10 @@
                 // Link contrato guardado
                 this.mostrarLinkContrato(App.estado.contratoActual.urlContrato||'');
 
+                // Cargar observaciones
+                const obsEl = document.getElementById('input-observaciones');
+                if (obsEl) obsEl.value = App.estado.contratoActual.observaciones || '';
+
                 const btn=document.getElementById('btn-accion-principal');
                 btn.textContent=App.estado.contratoEditandoIndex===-1?'💾 Guardar Compromiso':'🔄 Actualizar Compromiso';
             },
@@ -1142,6 +1164,7 @@
                             <span class="${clFecha}">📅 ${fecha}</span> <span>⏰ ${App.util.formatearHorario(ct.datos.horaInicio,ct.datos.horaFin)}</span><br>
                             <span>Total: S/. ${((ct.datos.precioHora*ct.datos.horas)+ct.datos.movilidadCliente).toFixed(2)}</span>
                             <span style="color:var(--green);font-weight:700;"> · Gan: S/. ${ct.gananciaNeta.toFixed(2)}</span>
+                            ${ct.datos.observaciones?`<br><span style="color:#92400e;font-size:.82rem;">📝 ${ct.datos.observaciones}</span>`:''}
                             ${linkCt?`<br>${linkCt}`:''}
                         </div>
                         <div>
