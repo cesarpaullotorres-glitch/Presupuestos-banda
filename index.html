@@ -644,6 +644,11 @@
 
         async guardarDatosFirebase() {
             try {
+                // Asegurar que todos los contratos tengan ID (compatibilidad con datos antiguos)
+                this.estado.contratos = this.estado.contratos.map(c => ({
+                    ...c,
+                    id: c.id || `ct_${Date.now()}_${Math.random().toString(36).substr(2,6)}`
+                }));
                 await datosRef.set({
                     agrupacion: this.estado.agrupacion,
                     staff:      this.estado.staff,
@@ -884,10 +889,11 @@
 
             async accionPrincipal() {
                 const g = App.calculos.calcularGananciaActual();
+                const idExistente = App.estado.contratoEditandoIndex !== -1 
+                    ? App.estado.contratos[App.estado.contratoEditandoIndex].id 
+                    : undefined;
                 const entrada = {
-                    id: App.estado.contratoEditandoIndex===-1 
-                        ? `ct_${Date.now()}_${Math.random().toString(36).substr(2,6)}`
-                        : App.estado.contratos[App.estado.contratoEditandoIndex].id,
+                    id: idExistente || `ct_${Date.now()}_${Math.random().toString(36).substr(2,6)}`,
                     datos: JSON.parse(JSON.stringify(App.estado.contratoActual)),
                     personal: JSON.parse(JSON.stringify(App.estado.seleccionados)),
                     gastoMovilidad: App.estado.gastoMovilidadReal,
