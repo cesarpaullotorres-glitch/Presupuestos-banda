@@ -756,19 +756,45 @@
                 const m = App.estado.staff[nombre.toLowerCase()];
                 return m ? { celular: m.celular||null, metodoPago: m.metodoPago||'Yape' } : { celular:null, metodoPago:'Yape' };
             },
-            async copiarCelular(nombre, btn) {
+            copiarCelular(nombre, btn) {
                 const d = this.obtenerDatosPago(nombre);
-                if (!d.celular) { alert(`⚠️ ${nombre} no tiene número registrado.`); return; }
-                try {
-                    await navigator.clipboard.writeText(d.celular);
-                } catch {
-                    const inp = document.createElement('input');
-                    inp.value = d.celular; document.body.appendChild(inp);
-                    inp.select(); document.execCommand('copy'); document.body.removeChild(inp);
+                if (!d.celular) { App.util.toast(`⚠️ ${nombre} sin número registrado`, 'rojo'); return; }
+
+                // Método compatible con todos los celulares
+                const exito = () => {
+                    const orig = btn.innerHTML;
+                    btn.innerHTML = '✅ Copiado';
+                    btn.style.background = '#16a34a';
+                    setTimeout(()=>{ btn.innerHTML=orig; btn.style.background=''; }, 2500);
+                    App.util.toast(`📋 ${d.celular} copiado`);
+                };
+
+                // Intentar clipboard moderno
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(d.celular).then(exito).catch(() => {
+                        App.util.copiarFallback(d.celular, exito);
+                    });
+                } else {
+                    App.util.copiarFallback(d.celular, exito);
                 }
-                const orig = btn.innerHTML;
-                btn.innerHTML = '✅'; btn.style.background='#16a34a';
-                setTimeout(()=>{ btn.innerHTML=orig; btn.style.background=''; }, 2000);
+            },
+
+            copiarFallback(texto, callback) {
+                // Método clásico compatible con Oppo, Redmi, Samsung, etc.
+                const textarea = document.createElement('textarea');
+                textarea.value = texto;
+                textarea.style.cssText = 'position:fixed;top:0;left:0;opacity:0;font-size:16px;';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    if (callback) callback();
+                } catch(e) {
+                    // Si todo falla, mostrar el número en pantalla
+                    App.util.toast(`📞 Número: ${texto}`, 'verde', 5000);
+                }
+                document.body.removeChild(textarea);
             }
         },
 
