@@ -275,6 +275,19 @@
         .split-total { font-size: 1.05rem; font-weight: 800; display: block; margin-top: 6px; }
         @media (max-width: 400px) { .split-grid { grid-template-columns: 1fr; } }
 
+        /* ── TOAST ── */
+        #toast {
+            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: #1a2f5e; color: white; padding: 10px 20px;
+            border-radius: 50px; font-size: 14px; font-weight: 600;
+            opacity: 0; transition: opacity .3s, transform .3s;
+            z-index: 9999; pointer-events: none; white-space: nowrap;
+            box-shadow: 0 4px 14px rgba(0,0,0,.25);
+        }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        #toast.verde { background: #16a34a; }
+        #toast.rojo  { background: #dc2626; }
+
         /* ── NOTA / SUBTEXTO ── */
         .nota { color: var(--muted); font-size: .88rem; margin: 4px 0 10px; }
         .total-texto { font-size: .95rem; font-weight: 700; text-align: right; margin: 10px 4px; }
@@ -292,6 +305,9 @@
     </style>
 </head>
 <body>
+
+<!-- TOAST -->
+<div id="toast"></div>
 
 <!-- SPLASH -->
 <div id="splash-screen">
@@ -652,15 +668,15 @@
             guardarUrlContrato() {
                 const input = document.getElementById('input-url-contrato');
                 const url = input?.value.trim();
-                if (!url) { alert('Pega el enlace de Google Drive primero.'); return; }
-                if (!url.startsWith('http')) { alert('El enlace no es válido.'); return; }
+                if (!url) { App.util.toast('⚠️ Pega el enlace primero', 'rojo'); return; }
+                if (!url.startsWith('http')) { App.util.toast('⚠️ El enlace no es válido', 'rojo'); return; }
                 App.estado.contratoActual.urlContrato = url;
                 App.render.mostrarLinkContrato(url);
-                alert('✅ Enlace guardado. Recuerda guardar el compromiso.');
+                App.util.toast('✅ Enlace guardado');
             },
             guardarObservaciones(texto) {
                 App.estado.contratoActual.observaciones = texto.trim();
-                alert('✅ Observaciones guardadas. Recuerda guardar el compromiso.');
+                App.util.toast('✅ Observaciones guardadas');
             }
         },
 
@@ -715,6 +731,15 @@
                 document.addEventListener('click', e => { if (!wrap.contains(e.target)) lista.style.display='none'; });
             },
             num(v) { const n=parseFloat(v); return (isNaN(n)||n<0)?0:n; },
+            toast(msg, tipo='verde', ms=2500) {
+                const t = document.getElementById('toast');
+                if (!t) return;
+                t.textContent = msg;
+                t.className = `show ${tipo}`;
+                clearTimeout(t._timer);
+                t._timer = setTimeout(() => t.className = '', ms);
+            },
+
             ordenarPorFechaEvento(arr) {
                 return [...arr].sort((a,b) => {
                     const fa = a.datos.fechaContrato ? new Date(a.datos.fechaContrato) : new Date(0);
@@ -860,6 +885,9 @@
             async accionPrincipal() {
                 const g = App.calculos.calcularGananciaActual();
                 const entrada = {
+                    id: App.estado.contratoEditandoIndex===-1 
+                        ? `ct_${Date.now()}_${Math.random().toString(36).substr(2,6)}`
+                        : App.estado.contratos[App.estado.contratoEditandoIndex].id,
                     datos: JSON.parse(JSON.stringify(App.estado.contratoActual)),
                     personal: JSON.parse(JSON.stringify(App.estado.seleccionados)),
                     gastoMovilidad: App.estado.gastoMovilidadReal,
@@ -893,9 +921,11 @@
             editarContrato(idx) {
                 const ord = App.util.ordenarPorFechaEvento(App.estado.contratos);
                 const ct  = ord[idx];
-                const ri  = App.estado.contratos.findIndex(c=>
-                    JSON.stringify(c.datos)===JSON.stringify(ct.datos) &&
-                    JSON.stringify(c.personal)===JSON.stringify(ct.personal));
+                const ri  = ct.id 
+                    ? App.estado.contratos.findIndex(c=>c.id===ct.id)
+                    : App.estado.contratos.findIndex(c=>
+                        JSON.stringify(c.datos)===JSON.stringify(ct.datos) &&
+                        JSON.stringify(c.personal)===JSON.stringify(ct.personal));
                 App.estado.contratoEditandoIndex=ri;
                 App.estado.contratoActual   = JSON.parse(JSON.stringify(ct.datos));
                 App.estado.seleccionados    = JSON.parse(JSON.stringify(ct.personal));
@@ -921,9 +951,11 @@
                 if (!confirm('¿Eliminar este contrato?')) return;
                 const ord = App.util.ordenarPorFechaEvento(App.estado.contratos);
                 const ct  = ord[idx];
-                const ri  = App.estado.contratos.findIndex(c=>
-                    JSON.stringify(c.datos)===JSON.stringify(ct.datos) &&
-                    JSON.stringify(c.personal)===JSON.stringify(ct.personal));
+                const ri  = ct.id
+                    ? App.estado.contratos.findIndex(c=>c.id===ct.id)
+                    : App.estado.contratos.findIndex(c=>
+                        JSON.stringify(c.datos)===JSON.stringify(ct.datos) &&
+                        JSON.stringify(c.personal)===JSON.stringify(ct.personal));
                 if (ri!==-1) {
                     App.estado.contratos.splice(ri,1);
                     await App.guardarDatosFirebase();
@@ -1181,7 +1213,9 @@
 
                 App.estado.contratos.forEach(ct=>{
                     if(!ct.datos.fechaContrato) return;
-                    const dObj=new Date(ct.datos.fechaContrato);
+                    // Parseo local para evitar problema de zona horaria
+                    const _fp=ct.datos.fechaContrato.split('-');
+                    const dObj=new Date(parseInt(_fp[0]),parseInt(_fp[1])-1,parseInt(_fp[2]));
                     const claveOrden=`${dObj.getFullYear()}-${String(dObj.getMonth()+1).padStart(2,'0')}`;
                     const label=dObj.toLocaleDateString('es-ES',{year:'numeric',month:'long'});
                     if(!porMes[claveOrden]) porMes[claveOrden]={label,totalMes:0,cesarMes:0,lidiaMes:0,eventos:[]};
