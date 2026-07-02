@@ -509,11 +509,12 @@
 <!-- P7: HISTORIAL -->
 <div id="pantalla-historial" class="pantalla">
     <!-- Título -->
-    <h2 id="titulo-historial" style="margin-bottom:12px;">Contratos</h2>
+    <h2 id="titulo-historial" style="margin-bottom:2px;"></h2>
+    <p style="font-size:1rem;font-weight:700;color:var(--copper);letter-spacing:.04em;text-transform:uppercase;margin-bottom:12px;">Contratos</p>
 
     <!-- Pestañas de navegación -->
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-        <button class="btn-green btn-sm" onclick="App.controlador.nuevoContrato()">➕ Nuevo</button>
+        <button class="btn-green btn-sm" onclick="App.controlador.nuevoContrato()">➕ Nuevo Contrato</button>
         <button class="btn-copper btn-sm" onclick="App.navegacion.irA('pantalla-resumen-financiero')">💰 Ganancias</button>
         <button class="btn-blue btn-sm" onclick="App.navegacion.irA('pantalla-adelantos')">📋 Adelantos</button>
         <button class="btn-amber btn-sm" onclick="App.controlador.editarStaff()">👥 Staff</button>
@@ -919,7 +920,7 @@
                 App.estado.agrupacion = nombre || App.estado.agrupacion;
                 document.getElementById('titulo-staff').innerText    = `Staff – ${App.estado.agrupacion}`;
                 document.getElementById('titulo-contrato').innerText  = `Contrato – ${App.estado.agrupacion}`;
-                document.getElementById('titulo-historial').innerText = `${App.estado.agrupacion}`;
+                document.getElementById('titulo-historial').innerText = App.estado.agrupacion;
                 App.render.staff();
                 if (!esCarga) { App.navegacion.irA('pantalla-staff'); App.guardarDatosFirebase(); }
             },
@@ -1562,9 +1563,10 @@
                     const li=document.createElement('li');
                     li.className=`item-contrato${pasado?' pasado':''}`;
                     li.style.borderLeftColor = ct.grupoId ? 'var(--copper)' : '';
+                    const numMostrado = ord.length - i;
                     li.innerHTML=`
                         <div class="contrato-info" onclick="App.controlador.editarContrato(${i})">
-                            <span class="numero-lista">${i+1}.</span><strong>${ct.datos.nombre}</strong><br>
+                            <span class="numero-lista">${numMostrado}.</span><strong>${ct.datos.nombre}</strong><br>
                             <span class="${clFecha}">📅 ${fecha}</span> <span>⏰ ${App.util.formatearHorario(ct.datos.horaInicio,ct.datos.horaFin)}</span><br>
                             <span>Total: S/. ${((ct.datos.precioHora*ct.datos.horas)+ct.datos.movilidadCliente).toFixed(2)}</span>
                             <span style="color:var(--green);font-weight:700;"> · Gan: S/. ${ct.gananciaNeta.toFixed(2)}</span>
