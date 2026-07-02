@@ -513,6 +513,7 @@
 
     <!-- Pestañas de navegación -->
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+        <button class="btn-green btn-sm" onclick="App.controlador.nuevoContrato()">➕ Nuevo</button>
         <button class="btn-copper btn-sm" onclick="App.navegacion.irA('pantalla-resumen-financiero')">💰 Ganancias</button>
         <button class="btn-blue btn-sm" onclick="App.navegacion.irA('pantalla-adelantos')">📋 Adelantos</button>
         <button class="btn-amber btn-sm" onclick="App.controlador.editarStaff()">👥 Staff</button>
@@ -520,11 +521,6 @@
 
     <!-- Lista de contratos -->
     <ul id="lista-contratos" class="lista-contratos"></ul>
-
-    <!-- Botón nuevo contrato -->
-    <div style="margin-top:12px;">
-        <button class="btn-green" onclick="App.controlador.nuevoContrato()" style="width:100%;padding:12px;font-size:15px;">➕ Nuevo Contrato</button>
-    </div>
 </div>
 
 <!-- P8: RESUMEN FINANCIERO -->
@@ -973,6 +969,11 @@
             generarSubfechas() {
                 const cant = parseInt(document.getElementById('input-cant-fechas').value);
                 if (!cant || cant < 2) { App.util.toast('⚠️ Pon un número válido de fechas (mínimo 2)', 'rojo'); return; }
+                
+                // Leer precio/hora e integrantes del formulario principal para copiarlos
+                const precioBase = document.getElementById('input-precio-hora')?.value || '';
+                const integrantesBase = document.getElementById('input-cant-integrantes')?.value || '';
+                
                 const cont = document.getElementById('contenedor-subfechas');
                 cont.innerHTML = '';
                 for (let i = 1; i <= cant; i++) {
@@ -991,9 +992,9 @@
                             </div>
                         </div>
                         <input type="number" id="subf-horas-${i}" placeholder="Cantidad de horas" min="0" step="0.5">
-                        <input type="number" id="subf-integrantes-${i}" placeholder="Cantidad de integrantes" min="1">
+                        <input type="number" id="subf-integrantes-${i}" placeholder="Cantidad de integrantes" min="1" value="${integrantesBase}">
                         <div class="moneda-row">
-                            <input type="number" step="0.01" id="subf-precio-${i}" placeholder="Precio por hora">
+                            <input type="number" step="0.01" id="subf-precio-${i}" placeholder="Precio por hora" value="${precioBase}">
                             <span class="moneda-tag">S/.</span>
                         </div>
                         <div class="moneda-row">
@@ -1002,7 +1003,7 @@
                         </div>
                     </div>`;
                 }
-                App.util.toast(`✅ ${cant} fechas generadas, complétalas abajo`);
+                App.util.toast(`✅ ${cant} fechas generadas — precio e integrantes copiados`);
             },
 
             guardarDatosContrato() {
