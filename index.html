@@ -359,11 +359,41 @@
         <label class="field-label">📅 Fecha de firma</label>
         <input type="date" id="input-fecha-firma">
 
-        <label class="field-label">📅 Fecha del evento</label>
-        <input type="date" id="input-fecha-contrato">
+        <!-- Toggle fechas múltiples -->
+        <div id="bloque-fecha-unica">
+            <label class="field-label">📅 Fecha del evento</label>
+            <input type="date" id="input-fecha-contrato">
+        </div>
+
+        <div style="margin:4px 0 10px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--copper);font-weight:700;cursor:pointer;">
+                <input type="checkbox" id="check-fechas-multiples" style="width:auto;margin:0;" onchange="App.controlador.toggleFechasMultiples(this.checked)">
+                📅 Fechas múltiples (mismo cliente, varios días)
+            </label>
+        </div>
+
+        <div id="bloque-fechas-multiples" style="display:none;">
+            <label class="field-label">¿Cuántas fechas son?</label>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+                <input type="number" id="input-cant-fechas" min="2" max="15" placeholder="Ej: 4" style="margin-bottom:0;flex:1;">
+                <button class="btn-copper btn-sm" style="margin:0;white-space:nowrap;" onclick="App.controlador.generarSubfechas()">Generar</button>
+            </div>
+
+            <!-- Adelanto global -->
+            <div class="card" style="background:#eff6ff;border-color:#bfdbfe;margin-bottom:10px;padding:12px;">
+                <h3 style="color:#1d4ed8;margin-bottom:6px;font-size:.9rem;">💰 Adelanto Global del Contrato</h3>
+                <p class="nota" style="margin-bottom:8px;">Se descuenta automáticamente fecha por fecha en orden</p>
+                <div class="moneda-row">
+                    <input type="number" step="0.01" id="input-adelanto-global" placeholder="Adelanto total recibido" style="margin-bottom:0;">
+                    <span class="moneda-tag">S/.</span>
+                </div>
+            </div>
+
+            <div id="contenedor-subfechas"></div>
+        </div>
 
         <label class="field-label">⏰ Horario del evento</label>
-        <div class="grupo-horas">
+        <div class="grupo-horas" id="bloque-horario-unico">
             <div class="campo-hora">
                 <label class="field-label">Inicio</label>
                 <input type="time" id="input-hora-inicio">
@@ -374,25 +404,27 @@
             </div>
         </div>
 
-        <input type="number" id="input-horas" placeholder="Cantidad de Horas" min="0" step="0.5">
-        <input type="number" id="input-cant-integrantes" placeholder="Cantidad de Integrantes" min="1">
+        <div id="bloque-campos-unicos">
+            <input type="number" id="input-horas" placeholder="Cantidad de Horas" min="0" step="0.5">
+            <input type="number" id="input-cant-integrantes" placeholder="Cantidad de Integrantes" min="1">
 
-        <label class="field-label">Precio por hora de banda</label>
-        <div class="moneda-row">
-            <input type="number" step="0.01" id="input-precio-hora">
-            <span class="moneda-tag">S/.</span>
-        </div>
+            <label class="field-label">Precio por hora de banda</label>
+            <div class="moneda-row">
+                <input type="number" step="0.01" id="input-precio-hora">
+                <span class="moneda-tag">S/.</span>
+            </div>
 
-        <label class="field-label">Movilidad del cliente</label>
-        <div class="moneda-row">
-            <input type="number" step="0.01" id="input-movilidad">
-            <span class="moneda-tag">S/.</span>
-        </div>
+            <label class="field-label">Movilidad del cliente</label>
+            <div class="moneda-row">
+                <input type="number" step="0.01" id="input-movilidad">
+                <span class="moneda-tag">S/.</span>
+            </div>
 
-        <label class="field-label">Adelanto cobrado</label>
-        <div class="moneda-row">
-            <input type="number" step="0.01" id="input-adelanto-cliente">
-            <span class="moneda-tag">S/.</span>
+            <label class="field-label">Adelanto cobrado</label>
+            <div class="moneda-row">
+                <input type="number" step="0.01" id="input-adelanto-cliente">
+                <span class="moneda-tag">S/.</span>
+            </div>
         </div>
 
         <button onclick="App.controlador.guardarDatosContrato()" style="width:100%;margin-top:4px;">Continuar →</button>
@@ -402,7 +434,7 @@
 <!-- P5: SELECCIÓN -->
 <div id="pantalla-seleccion" class="pantalla">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <button class="btn-back btn-sm" onclick="App.navegacion.irA('pantalla-contrato')">⬅ Corregir</button>
+        <button class="btn-back btn-sm" onclick="App.navegacion.volverDesdeSeleccion()">⬅ Corregir</button>
         <h2 style="margin:0;">Seleccionar Integrantes</h2>
     </div>
     <div class="tabla-wrap">
@@ -421,6 +453,9 @@
     <div class="titulo-pantalla-evento" id="header-contrato-activo">
         <div class="nombre-contrato" id="label-nombre-contrato">—</div>
         <div class="sub-resumen">Resumen de presupuesto</div>
+        <div id="badge-fecha-multiple" style="display:none;margin-top:6px;">
+            <span style="background:var(--copper);color:#fff;padding:4px 12px;border-radius:50px;font-size:.8rem;font-weight:700;"></span>
+        </div>
     </div>
 
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
@@ -583,7 +618,11 @@
             contratos: [],
             gastoMovilidadReal: 0,
             contratoEditandoIndex: -1,
-            editandoStaff: false
+            editandoStaff: false,
+            colaContratosMultiples: [],   // cola pendiente de fechas múltiples
+            grupoMultipleId: null,         // ID que vincula contratos del mismo grupo
+            grupoMultipleTotal: 0,
+            grupoMultipleActual: 0
         },
 
         init() {
@@ -781,6 +820,29 @@
                 }
             },
 
+            // Calcular deuda acumulada de un músico en contratos del mismo grupo
+            calcularDeudaAcumulada(nombreMusico, grupoId, contratoActualId) {
+                if (!grupoId) return 0;
+                let deuda = 0;
+                const nombreNorm = nombreMusico.toLowerCase();
+                App.estado.contratos.forEach(ct => {
+                    // Solo contratos del mismo grupo, que ya pasaron, y que no son el actual
+                    if (ct.grupoId !== grupoId) return;
+                    if (ct.id === contratoActualId) return;
+                    if (!App.util.esFechaPasada(ct.datos.fechaContrato)) return;
+                    // Buscar al músico en ese contrato
+                    if (!ct.personal) return;
+                    ct.personal.forEach(m => {
+                        if (m.nombreDisplay.toLowerCase() !== nombreNorm) return;
+                        if (m.pagado) return; // ya fue pagado, no cuenta
+                        const bruto = m.boloGlobal > 0 ? m.boloGlobal : m.tarifaHora * m.horasTocadas;
+                        const neto = bruto - m.adelantoDado;
+                        if (neto > 0) deuda += neto;
+                    });
+                });
+                return parseFloat(deuda.toFixed(2));
+            },
+
             copiarFallback(texto, callback) {
                 // Método clásico compatible con Oppo, Redmi, Samsung, etc.
                 const textarea = document.createElement('textarea');
@@ -823,6 +885,34 @@
                 } else {
                     this.irA('pantalla-nombre');
                 }
+            },
+            volverDesdeSeleccion() {
+                // Guardar los nombres escritos en los inputs antes de retroceder
+                const inputs = document.querySelectorAll('.input-seleccion');
+                const seleccionadosPreservados = [];
+                let id = 0;
+                inputs.forEach(inp => {
+                    const nombre = inp.value.trim();
+                    if (!nombre) return;
+                    const k = nombre.toLowerCase();
+                    const ms = App.estado.staff[k];
+                    const esUtilero = k === 'utilero';
+                    const anterior = App.estado.seleccionados.find(m =>
+                        m.nombreDisplay.toLowerCase() === (esUtilero ? 'utilero' : (ms ? ms.nombreOriginal : nombre)).toLowerCase()
+                    );
+                    seleccionadosPreservados.push({
+                        id: anterior ? anterior.id : id++,
+                        nombreDisplay: esUtilero ? 'Utilero' : (ms ? ms.nombreOriginal : nombre),
+                        tipo: esUtilero ? 'utilero' : (ms ? 'planta' : 'invitado'),
+                        tarifaHora: anterior ? anterior.tarifaHora : (ms ? ms.tarifa : 0),
+                        horasTocadas: anterior ? anterior.horasTocadas : App.estado.contratoActual.horas,
+                        boloGlobal: anterior ? anterior.boloGlobal : 0,
+                        adelantoDado: anterior ? anterior.adelantoDado : 0,
+                        pagado: anterior ? anterior.pagado : false
+                    });
+                });
+                App.estado.seleccionados = seleccionadosPreservados;
+                this.irA('pantalla-contrato');
             }
         },
 
@@ -871,7 +961,58 @@
 
             editarStaff() { App.estado.editandoStaff=true; App.navegacion.irA('pantalla-staff'); },
 
+            // ── FECHAS MÚLTIPLES ──
+            toggleFechasMultiples(activo) {
+                document.getElementById('bloque-fecha-unica').style.display = activo ? 'none' : 'block';
+                document.getElementById('bloque-fechas-multiples').style.display = activo ? 'block' : 'none';
+                document.getElementById('bloque-horario-unico').style.display = activo ? 'none' : 'flex';
+                document.getElementById('bloque-campos-unicos').style.display = activo ? 'none' : 'block';
+                if (!activo) document.getElementById('contenedor-subfechas').innerHTML = '';
+            },
+
+            generarSubfechas() {
+                const cant = parseInt(document.getElementById('input-cant-fechas').value);
+                if (!cant || cant < 2) { App.util.toast('⚠️ Pon un número válido de fechas (mínimo 2)', 'rojo'); return; }
+                const cont = document.getElementById('contenedor-subfechas');
+                cont.innerHTML = '';
+                for (let i = 1; i <= cant; i++) {
+                    cont.innerHTML += `
+                    <div class="card" style="background:#f5ede6;border-color:#e0c9b3;margin-bottom:8px;">
+                        <strong style="color:var(--copper);font-size:.9rem;">📅 Fecha ${i}</strong>
+                        <input type="date" id="subf-fecha-${i}" style="margin-top:6px;">
+                        <div class="grupo-horas">
+                            <div class="campo-hora">
+                                <label class="field-label">Inicio</label>
+                                <input type="time" id="subf-inicio-${i}">
+                            </div>
+                            <div class="campo-hora">
+                                <label class="field-label">Término</label>
+                                <input type="time" id="subf-fin-${i}">
+                            </div>
+                        </div>
+                        <input type="number" id="subf-horas-${i}" placeholder="Cantidad de horas" min="0" step="0.5">
+                        <input type="number" id="subf-integrantes-${i}" placeholder="Cantidad de integrantes" min="1">
+                        <div class="moneda-row">
+                            <input type="number" step="0.01" id="subf-precio-${i}" placeholder="Precio por hora">
+                            <span class="moneda-tag">S/.</span>
+                        </div>
+                        <div class="moneda-row">
+                            <input type="number" step="0.01" id="subf-movilidad-${i}" placeholder="Movilidad">
+                            <span class="moneda-tag">S/.</span>
+                        </div>
+                    </div>`;
+                }
+                App.util.toast(`✅ ${cant} fechas generadas, complétalas abajo`);
+            },
+
             guardarDatosContrato() {
+                const esMultiple = document.getElementById('check-fechas-multiples')?.checked;
+
+                if (esMultiple) {
+                    App.controlador.guardarContratoMultiple();
+                    return;
+                }
+
                 const c = App.estado.contratoActual;
                 c.nombre           = document.getElementById('input-nombre-contrato').value.trim()||"Sin nombre";
                 c.fechaFirma       = document.getElementById('input-fecha-firma').value||"";
@@ -883,8 +1024,103 @@
                 c.precioHora       = App.util.num(document.getElementById('input-precio-hora').value);
                 c.movilidadCliente = App.util.num(document.getElementById('input-movilidad').value);
                 c.adelantoCliente  = App.util.num(document.getElementById('input-adelanto-cliente').value);
-                c.observaciones = document.getElementById('input-observaciones').value.trim() || "";
                 if (App.estado.contratoEditandoIndex===-1) App.estado.gastoMovilidadReal = c.movilidadCliente;
+                App.render.seleccion();
+                App.navegacion.irA('pantalla-seleccion');
+            },
+
+            guardarContratoMultiple() {
+                const nombreBase = document.getElementById('input-nombre-contrato').value.trim() || "Sin nombre";
+                const fechaFirma = document.getElementById('input-fecha-firma').value || "";
+                const cant = parseInt(document.getElementById('input-cant-fechas').value) || 0;
+
+                if (cant < 2) { App.util.toast('⚠️ Genera las fechas primero', 'rojo'); return; }
+
+                // Si ya hay una cola activa del mismo grupo, no la regeneres
+                // (el usuario retrocedió desde selección, no hay que reiniciar todo)
+                if (App.estado.grupoMultipleId && App.estado.grupoMultipleActual > 0) {
+                    // Solo volver a la pantalla de selección con los datos actuales
+                    App.render.seleccion();
+                    App.navegacion.irA('pantalla-seleccion');
+                    return;
+                }
+
+                // Leer adelanto global y distribuirlo fecha por fecha
+                let adelantoRestante = App.util.num(document.getElementById('input-adelanto-global')?.value);
+
+                const cola = [];
+                for (let i = 1; i <= cant; i++) {
+                    const fecha = document.getElementById(`subf-fecha-${i}`)?.value || "";
+                    if (!fecha) { App.util.toast(`⚠️ Falta la fecha #${i}`, 'rojo'); return; }
+
+                    const horas = App.util.num(document.getElementById(`subf-horas-${i}`)?.value);
+                    const precioHora = App.util.num(document.getElementById(`subf-precio-${i}`)?.value);
+                    const movilidad = App.util.num(document.getElementById(`subf-movilidad-${i}`)?.value);
+                    const totalFecha = (horas * precioHora) + movilidad;
+
+                    // Calcular adelanto que corresponde a esta fecha
+                    let adelantoFecha = 0;
+                    if (adelantoRestante > 0) {
+                        adelantoFecha = Math.min(adelantoRestante, totalFecha);
+                        adelantoRestante = parseFloat((adelantoRestante - adelantoFecha).toFixed(2));
+                    }
+
+                    const adelantoGlobalTotal = App.util.num(document.getElementById('input-adelanto-global')?.value);
+                    const notaAdelanto = adelantoGlobalTotal > 0
+                        ? adelantoFecha > 0
+                            ? `Adelanto global S/. ${adelantoGlobalTotal.toFixed(2)} — aplicado S/. ${adelantoFecha.toFixed(2)} en esta fecha`
+                            : `Adelanto global S/. ${adelantoGlobalTotal.toFixed(2)} — ya cubierto en fechas anteriores`
+                        : "";
+
+                    cola.push({
+                        nombre: `${nombreBase} (Fecha ${i}/${cant})`,
+                        fechaFirma: fechaFirma,
+                        fechaContrato: fecha,
+                        horaInicio: document.getElementById(`subf-inicio-${i}`)?.value || "",
+                        horaFin: document.getElementById(`subf-fin-${i}`)?.value || "",
+                        horas: horas,
+                        integrantes: parseInt(document.getElementById(`subf-integrantes-${i}`)?.value)||0,
+                        precioHora: precioHora,
+                        movilidadCliente: movilidad,
+                        adelantoCliente: adelantoFecha,
+                        urlContrato: "", observaciones: notaAdelanto
+                    });
+                }
+
+                // Vincular todas las fechas con un mismo ID de grupo
+                App.estado.grupoMultipleId = `grp_${Date.now()}_${Math.random().toString(36).substr(2,5)}`;
+                App.estado.colaContratosMultiples = cola;
+                App.estado.grupoMultipleTotal = cola.length;
+                App.estado.grupoMultipleActual = 0;
+
+                App.controlador.procesarSiguienteFechaMultiple();
+            },
+
+            procesarSiguienteFechaMultiple() {
+                if (App.estado.colaContratosMultiples.length === 0) {
+                    App.estado.grupoMultipleId = null;
+                    App.util.toast('✅ Todas las fechas del contrato fueron guardadas');
+                    App.render.historial();
+                    App.navegacion.irA('pantalla-historial');
+                    return;
+                }
+                const siguiente = App.estado.colaContratosMultiples.shift();
+                App.estado.grupoMultipleActual++;
+                App.estado.contratoEditandoIndex = -1;
+                App.estado.contratoActual = siguiente;
+
+                // Buscar si ya existe un contrato guardado para esta fecha del grupo
+                // y recuperar sus integrantes para no perderlos si se retrocede
+                const yaGuardado = App.estado.contratos.find(c =>
+                    c.grupoId === App.estado.grupoMultipleId &&
+                    c.grupoIndice === App.estado.grupoMultipleActual
+                );
+                App.estado.seleccionados = yaGuardado ? JSON.parse(JSON.stringify(yaGuardado.personal)) : [];
+                App.estado.gastoMovilidadReal = siguiente.movilidadCliente;
+
+                App.util.toast(`📅 Selecciona músicos para: Fecha ${App.estado.grupoMultipleActual}/${App.estado.grupoMultipleTotal}`);
+                document.getElementById('input-cant-integrantes').value = siguiente.integrantes;
+                App.estado.contratoActual.integrantes = siguiente.integrantes;
                 App.render.seleccion();
                 App.navegacion.irA('pantalla-seleccion');
             },
@@ -900,13 +1136,19 @@
                         usados.add(k);
                         const esUtilero = k==='utilero';
                         const ms = App.estado.staff[k];
+                        // Preservar datos ya ingresados si el músico ya existía antes
+                        const anterior = App.estado.seleccionados.find(m => 
+                            m.nombreDisplay.toLowerCase() === (esUtilero?'utilero':(ms?ms.nombreOriginal:n)).toLowerCase()
+                        );
                         nuevos.push({
-                            id: id++,
+                            id: anterior ? anterior.id : id++,
                             nombreDisplay: esUtilero?'Utilero':(ms?ms.nombreOriginal:n),
                             tipo: esUtilero?'utilero':(ms?'planta':'invitado'),
-                            tarifaHora: ms?ms.tarifa:0,
-                            horasTocadas: App.estado.contratoActual.horas,
-                            boloGlobal:0, adelantoDado:0, pagado:false
+                            tarifaHora: anterior ? anterior.tarifaHora : (ms?ms.tarifa:0),
+                            horasTocadas: anterior ? anterior.horasTocadas : App.estado.contratoActual.horas,
+                            boloGlobal: anterior ? anterior.boloGlobal : 0,
+                            adelantoDado: anterior ? anterior.adelantoDado : 0,
+                            pagado: anterior ? anterior.pagado : false
                         });
                     }
                 }
@@ -920,20 +1162,48 @@
                 const idExistente = App.estado.contratoEditandoIndex !== -1 
                     ? App.estado.contratos[App.estado.contratoEditandoIndex].id 
                     : undefined;
+
+                // Si estamos en flujo múltiple, verificar si ya existe este contrato por grupoId+grupoIndice
+                let indiceRealMultiple = -1;
+                if (App.estado.grupoMultipleId) {
+                    indiceRealMultiple = App.estado.contratos.findIndex(c =>
+                        c.grupoId === App.estado.grupoMultipleId &&
+                        c.grupoIndice === App.estado.grupoMultipleActual
+                    );
+                }
+
                 const entrada = {
-                    id: idExistente || `ct_${Date.now()}_${Math.random().toString(36).substr(2,6)}`,
+                    id: idExistente || (indiceRealMultiple !== -1 ? App.estado.contratos[indiceRealMultiple].id : null) || `ct_${Date.now()}_${Math.random().toString(36).substr(2,6)}`,
+                    grupoId: App.estado.grupoMultipleId || null,
+                    grupoIndice: App.estado.grupoMultipleId ? App.estado.grupoMultipleActual : null,
+                    grupoTotal: App.estado.grupoMultipleId ? App.estado.grupoMultipleTotal : null,
                     datos: JSON.parse(JSON.stringify(App.estado.contratoActual)),
                     personal: JSON.parse(JSON.stringify(App.estado.seleccionados)),
                     gastoMovilidad: App.estado.gastoMovilidadReal,
                     gananciaNeta: g
                 };
-                if (App.estado.contratoEditandoIndex===-1) {
-                    App.estado.contratos.push(entrada);
+
+                if (App.estado.contratoEditandoIndex !== -1) {
+                    // Edición normal
+                    App.estado.contratos[App.estado.contratoEditandoIndex] = entrada;
+                } else if (indiceRealMultiple !== -1) {
+                    // Reemplazar fecha múltiple existente (evita duplicado)
+                    App.estado.contratos[indiceRealMultiple] = entrada;
                 } else {
-                    App.estado.contratos[App.estado.contratoEditandoIndex]=entrada;
+                    // Nuevo contrato
+                    App.estado.contratos.push(entrada);
                 }
+
                 const ok = await App.guardarDatosFirebase();
-                if (ok) { App.render.historial(); App.navegacion.irA('pantalla-historial'); }
+                if (ok) {
+                    if (App.estado.grupoMultipleId && App.estado.colaContratosMultiples.length > 0) {
+                        App.controlador.procesarSiguienteFechaMultiple();
+                    } else {
+                        App.estado.grupoMultipleId = null;
+                        App.render.historial();
+                        App.navegacion.irA('pantalla-historial');
+                    }
+                }
             },
 
             nuevoContrato() {
@@ -944,11 +1214,17 @@
                     horas:0,integrantes:0,precioHora:0,movilidadCliente:0,adelantoCliente:0,urlContrato:""
                 };
                 App.estado.seleccionados=[]; App.estado.gastoMovilidadReal=0;
+                App.estado.grupoMultipleId=null; App.estado.colaContratosMultiples=[];
+                App.estado.grupoMultipleTotal=0; App.estado.grupoMultipleActual=0;
                 ['input-nombre-contrato','input-fecha-firma','input-fecha-contrato','input-hora-inicio',
                  'input-hora-fin','input-horas','input-cant-integrantes','input-precio-hora',
-                 'input-movilidad','input-adelanto-cliente','input-observaciones'].forEach(id=>{
+                 'input-movilidad','input-adelanto-cliente','input-cant-fechas','input-adelanto-global'].forEach(id=>{
                     const el=document.getElementById(id); if(el) el.value='';
                 });
+                const chk = document.getElementById('check-fechas-multiples');
+                if (chk) { chk.checked = false; App.controlador.toggleFechasMultiples(false); }
+                const cs = document.getElementById('contenedor-subfechas');
+                if (cs) cs.innerHTML = '';
                 App.navegacion.irA('pantalla-contrato');
             },
 
@@ -1076,6 +1352,17 @@
                 const labelNombre=document.getElementById('label-nombre-contrato');
                 if(labelNombre) labelNombre.textContent=App.estado.contratoActual.nombre||'Presupuesto';
 
+                // Badge de progreso si es contrato de fechas múltiples
+                const badgeMulti = document.getElementById('badge-fecha-multiple');
+                if (badgeMulti) {
+                    if (App.estado.grupoMultipleId) {
+                        badgeMulti.style.display = 'block';
+                        badgeMulti.querySelector('span').textContent = `📅 Fecha ${App.estado.grupoMultipleActual} de ${App.estado.grupoMultipleTotal}`;
+                    } else {
+                        badgeMulti.style.display = 'none';
+                    }
+                }
+
                 let totBruto=0,totNeto=0,pagoCesar=0,brCesar=0,pagoLidia=0,brLidia=0;
 
                 App.estado.seleccionados.forEach(m=>{
@@ -1108,6 +1395,22 @@
                     if(kn==='césar'){  pagoCesar=neto; brCesar=bruto; }
                     if(kn==='lidia'){  pagoLidia=neto; brLidia=bruto; }
 
+                    // Deuda acumulada de fechas anteriores del mismo grupo
+                    const ctActual = App.estado.contratoEditandoIndex !== -1
+                        ? App.estado.contratos[App.estado.contratoEditandoIndex]
+                        : null;
+                    const grupoIdActual = ctActual?.grupoId || App.estado.grupoMultipleId || null;
+                    const ctIdActual = ctActual?.id || null;
+                    const deudaAcum = App.util.calcularDeudaAcumulada(m.nombreDisplay, grupoIdActual, ctIdActual);
+                    const netoTotal = neto + deudaAcum;
+
+                    // Badge deuda acumulada
+                    const badgeDeuda = deudaAcum > 0
+                        ? `<br><span style="background:#fee2e2;color:#dc2626;font-size:.72rem;
+                            font-weight:700;padding:2px 7px;border-radius:50px;display:inline-block;margin-top:2px;">
+                            ⚠️ +S/.${deudaAcum.toFixed(2)} de fechas ant.
+                           </span>` : '';
+
                     // Botón pagar
                     const dp=App.util.obtenerDatosPago(m.nombreDisplay);
                     const metodo=dp.metodoPago||'Yape';
@@ -1120,14 +1423,17 @@
                     const tr=document.createElement('tr');
                     if(m.pagado) tr.classList.add('fila-pagada');
                     tr.innerHTML=`
-                        <td style="text-align:left;font-weight:600;">${m.nombreDisplay}</td>
+                        <td style="text-align:left;font-weight:600;">${m.nombreDisplay}${badgeDeuda}</td>
                         <td>${cPrecio}</td>
                         <td>${cHoras}</td>
                         <td>${cBolo||'–'}</td>
                         <td><input type="number" step="0.01" class="it adelanto" value="${m.adelantoDado}"
                             onblur="App.calculos.actualizarCampo(${m.id},'adelantoDado',this.value)"
                             onkeypress="if(event.key==='Enter')App.calculos.actualizarCampo(${m.id},'adelantoDado',this.value)"></td>
-                        <td style="font-weight:700;color:${m.pagado?'#15803d':'#16a34a'};">S/.${neto.toFixed(2)}</td>
+                        <td style="font-weight:700;color:${m.pagado?'#15803d':'#16a34a'};">
+                            S/.${neto.toFixed(2)}
+                            ${deudaAcum>0?`<br><span style="font-size:.75rem;color:#dc2626;font-weight:800;">Total: S/.${netoTotal.toFixed(2)}</span>`:''}
+                        </td>
                         <td><input type="checkbox" class="check-pagado" ${m.pagado?'checked':''} onchange="App.calculos.togglePagado(${m.id})"></td>
                         <td>${cPagar}</td>`;
                     tb.appendChild(tr);
@@ -1200,7 +1506,13 @@
                 if (obsEl) obsEl.value = App.estado.contratoActual.observaciones || '';
 
                 const btn=document.getElementById('btn-accion-principal');
-                btn.textContent=App.estado.contratoEditandoIndex===-1?'💾 Guardar Compromiso':'🔄 Actualizar Compromiso';
+                if (App.estado.grupoMultipleId && App.estado.colaContratosMultiples.length > 0) {
+                    btn.textContent = `💾 Guardar y seguir → Fecha ${App.estado.grupoMultipleActual+1} de ${App.estado.grupoMultipleTotal}`;
+                } else if (App.estado.grupoMultipleId) {
+                    btn.textContent = '💾 Guardar última fecha';
+                } else {
+                    btn.textContent=App.estado.contratoEditandoIndex===-1?'💾 Guardar Compromiso':'🔄 Actualizar Compromiso';
+                }
             },
 
             mostrarLinkContrato(url) {
@@ -1216,20 +1528,46 @@
                 if(!lista) return; lista.innerHTML='';
                 const ord=App.util.ordenarPorFechaEvento(App.estado.contratos);
                 if(!ord.length){ lista.innerHTML=`<li class="card">No hay compromisos guardados todavía.</li>`; return; }
+
+                // Calcular totales globales por grupo (fechas múltiples)
+                const totalesGrupo = {};
+                App.estado.contratos.forEach(c=>{
+                    if (c.grupoId) {
+                        if (!totalesGrupo[c.grupoId]) totalesGrupo[c.grupoId] = {total:0, ganancia:0, count:0};
+                        totalesGrupo[c.grupoId].total += (c.datos.precioHora*c.datos.horas)+c.datos.movilidadCliente;
+                        totalesGrupo[c.grupoId].ganancia += c.gananciaNeta;
+                        totalesGrupo[c.grupoId].count++;
+                    }
+                });
+
                 ord.forEach((ct,i)=>{
                     const fecha=App.util.formatearFecha(ct.datos.fechaContrato);
                     const pasado=App.util.esFechaPasada(ct.datos.fechaContrato);
                     const clFecha=pasado?'texto-vencido':'texto-activo';
                     const linkCt=ct.datos.urlContrato
                         ?`<a href="${ct.datos.urlContrato}" target="_blank" class="ver-contrato-btn">👁️ Ver Contrato</a>`:'';
+
+                    // Badge de grupo si pertenece a un contrato de fechas múltiples
+                    let badgeGrupo = '';
+                    if (ct.grupoId && ct.grupoIndice && ct.grupoTotal) {
+                        const g = totalesGrupo[ct.grupoId];
+                        const completo = g && g.count === ct.grupoTotal;
+                        badgeGrupo = `<br><span style="background:#f5ede6;color:var(--copper);font-size:.75rem;font-weight:700;
+                            padding:2px 8px;border-radius:50px;display:inline-block;margin-top:3px;">
+                            📅 Fecha ${ct.grupoIndice}/${ct.grupoTotal}${completo?` · Total grupo: S/. ${g.total.toFixed(2)} · Gan: S/. ${g.ganancia.toFixed(2)}`:' · faltan fechas'}
+                        </span>`;
+                    }
+
                     const li=document.createElement('li');
                     li.className=`item-contrato${pasado?' pasado':''}`;
+                    li.style.borderLeftColor = ct.grupoId ? 'var(--copper)' : '';
                     li.innerHTML=`
                         <div class="contrato-info" onclick="App.controlador.editarContrato(${i})">
                             <span class="numero-lista">${i+1}.</span><strong>${ct.datos.nombre}</strong><br>
                             <span class="${clFecha}">📅 ${fecha}</span> <span>⏰ ${App.util.formatearHorario(ct.datos.horaInicio,ct.datos.horaFin)}</span><br>
                             <span>Total: S/. ${((ct.datos.precioHora*ct.datos.horas)+ct.datos.movilidadCliente).toFixed(2)}</span>
                             <span style="color:var(--green);font-weight:700;"> · Gan: S/. ${ct.gananciaNeta.toFixed(2)}</span>
+                            ${badgeGrupo}
                             ${ct.datos.observaciones?`<br><span style="color:#92400e;font-size:.82rem;">📝 ${ct.datos.observaciones}</span>`:''}
                             ${linkCt?`<br>${linkCt}`:''}
                         </div>
