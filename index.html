@@ -461,7 +461,7 @@
     </div>
 
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-        <button class="btn-back btn-sm" onclick="App.navegacion.irA('pantalla-seleccion')">⬅ Corregir</button>
+        <button class="btn-back btn-sm" onclick="App.render.seleccion();App.navegacion.irA('pantalla-seleccion')">⬅ Corregir</button>
         <button class="btn-danger btn-sm" onclick="App.pdf.exportar()">📄 PDF</button>
     </div>
 
@@ -1484,7 +1484,7 @@
                 const saldo=totalCt-c.adelantoCliente;
                 const totalAdelantosDados = App.estado.seleccionados.reduce((s,m)=>s+m.adelantoDado,0);
                 const totalPendientePagar = totBruto - totalAdelantosDados;
-                const egresos=totBruto+App.estado.gastoMovilidadReal;
+                const egresos=totalPendientePagar+App.estado.gastoMovilidadReal;
                 const falta=egresos-saldo;
                 const ganancia=App.calculos.calcularGananciaActual();
 
