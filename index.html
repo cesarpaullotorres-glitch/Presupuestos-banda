@@ -666,11 +666,16 @@
                     const el = document.getElementById('input-nombre-agrupacion');
                     if (el) el.value = this.estado.agrupacion;
                     this.controlador.iniciarAgrupacion(true);
-                    if (this.estado.contratos?.length) {
-                        this.navegacion.irA('pantalla-historial');
-                        this.adelantos.actualizarDetalle();
-                    } else {
-                        this.navegacion.irA('pantalla-staff');
+
+                    // ✅ Intentar restaurar sesión anterior
+                    const restaurado = this.sesion.restaurar();
+                    if (!restaurado) {
+                        if (this.estado.contratos?.length) {
+                            this.navegacion.irA('pantalla-historial');
+                            this.adelantos.actualizarDetalle();
+                        } else {
+                            this.navegacion.irA('pantalla-staff');
+                        }
                     }
                 } else {
                     this.navegacion.irA('pantalla-nombre');
@@ -877,6 +882,8 @@
                 if (id==='pantalla-resumen-financiero') { App.render.resumenFinanciero(); App.adelantos.actualizarDetalle(); }
                 if (id==='pantalla-adelantos') App.adelantos.actualizarDetalle();
                 window.scrollTo(0,0);
+                // ✅ Guardar pantalla actual para restaurar si la app se cierra
+                App.sesion.guardar(id);
             },
             volverStaff() {
                 if (App.estado.editandoStaff) {
@@ -1225,6 +1232,7 @@
                         App.controlador.procesarSiguienteFechaMultiple();
                     } else {
                         App.estado.grupoMultipleId = null;
+                        App.sesion.limpiar(); // ✅ limpiar sesión al terminar
                         App.render.historial();
                         App.navegacion.irA('pantalla-historial');
                     }
@@ -1671,6 +1679,75 @@
                 const el=document.getElementById(id); const ic=document.getElementById(`ico-${id}`);
                 if(el.style.display==='block'){ el.style.display='none'; ic.textContent='▼'; }
                 else { el.style.display='block'; ic.textContent='▲'; }
+            }
+        },
+
+        // ── SESIÓN: guardar y restaurar pantalla activa ──
+        sesion: {
+            guardar(idPantalla) {
+                try {
+                    const datos = {
+                        pantalla: idPantalla,
+                        contratoEditandoIndex: App.estado.contratoEditandoIndex,
+                        seleccionados: App.estado.seleccionados,
+                        contratoActual: App.estado.contratoActual,
+                        gastoMovilidadReal: App.estado.gastoMovilidadReal,
+                        grupoMultipleId: App.estado.grupoMultipleId,
+                        grupoMultipleActual: App.estado.grupoMultipleActual,
+                        grupoMultipleTotal: App.estado.grupoMultipleTotal
+                    };
+                    sessionStorage.setItem('boloband_sesion', JSON.stringify(datos));
+                } catch(e) {}
+            },
+
+            restaurar() {
+                try {
+                    const raw = sessionStorage.getItem('boloband_sesion');
+                    if (!raw) return false;
+                    const datos = JSON.parse(raw);
+
+                    // Solo restaurar pantallas de trabajo (no splash, nombre, transición)
+                    const pantallasRestaurables = [
+                        'pantalla-resultados', 'pantalla-seleccion',
+                        'pantalla-historial', 'pantalla-resumen-financiero',
+                        'pantalla-adelantos', 'pantalla-staff', 'pantalla-contrato'
+                    ];
+                    if (!pantallasRestaurables.includes(datos.pantalla)) return false;
+
+                    // Restaurar estado
+                    if (datos.contratoEditandoIndex !== undefined)
+                        App.estado.contratoEditandoIndex = datos.contratoEditandoIndex;
+                    if (datos.seleccionados)
+                        App.estado.seleccionados = datos.seleccionados;
+                    if (datos.contratoActual)
+                        App.estado.contratoActual = datos.contratoActual;
+                    if (datos.gastoMovilidadReal !== undefined)
+                        App.estado.gastoMovilidadReal = datos.gastoMovilidadReal;
+                    if (datos.grupoMultipleId)
+                        App.estado.grupoMultipleId = datos.grupoMultipleId;
+                    if (datos.grupoMultipleActual)
+                        App.estado.grupoMultipleActual = datos.grupoMultipleActual;
+                    if (datos.grupoMultipleTotal)
+                        App.estado.grupoMultipleTotal = datos.grupoMultipleTotal;
+
+                    // Si estaba en resultados, recalcular
+                    if (datos.pantalla === 'pantalla-resultados') {
+                        App.calculos.actualizarTodo();
+                    }
+                    // Si estaba en selección, re-renderizar
+                    if (datos.pantalla === 'pantalla-seleccion') {
+                        App.render.seleccion();
+                    }
+
+                    App.navegacion.irA(datos.pantalla);
+                    return true;
+                } catch(e) {
+                    return false;
+                }
+            },
+
+            limpiar() {
+                try { sessionStorage.removeItem('boloband_sesion'); } catch(e) {}
             }
         },
 
