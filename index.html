@@ -1330,7 +1330,7 @@
                 if (m) { m.pagado=!m.pagado; this.actualizarTodo(); }
             },
             actualizarMovilidad(v) { App.estado.gastoMovilidadReal=App.util.num(v); this.actualizarTodo(); },
-            actualizarTodo() { App.render.resultados(); },
+            actualizarTodo() { App.render.resultados(); App.sesion.guardar('pantalla-resultados'); },
             calcularGananciaActual() {
                 const c=App.estado.contratoActual;
                 const total=(c.precioHora*c.horas)+c.movilidadCliente;
@@ -1696,13 +1696,13 @@
                         grupoMultipleActual: App.estado.grupoMultipleActual,
                         grupoMultipleTotal: App.estado.grupoMultipleTotal
                     };
-                    sessionStorage.setItem('boloband_sesion', JSON.stringify(datos));
+                    localStorage.setItem('boloband_sesion', JSON.stringify(datos));
                 } catch(e) {}
             },
 
             restaurar() {
                 try {
-                    const raw = sessionStorage.getItem('boloband_sesion');
+                    const raw = localStorage.getItem('boloband_sesion');
                     if (!raw) return false;
                     const datos = JSON.parse(raw);
 
@@ -1747,7 +1747,7 @@
             },
 
             limpiar() {
-                try { sessionStorage.removeItem('boloband_sesion'); } catch(e) {}
+                try { localStorage.removeItem('boloband_sesion'); } catch(e) {}
             }
         },
 
