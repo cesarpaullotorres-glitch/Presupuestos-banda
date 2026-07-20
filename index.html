@@ -1266,10 +1266,11 @@
             },
 
             editarContrato(idx) {
+                try {
                 const ord = App.util.ordenarPorFechaEvento(App.estado.contratos);
                 const ct  = ord[idx];
                 if (!ct || !ct.datos) { 
-                    App.util.toast('⚠️ Error al abrir el contrato', 'rojo'); 
+                    App.util.toast('⚠️ Error: contrato no encontrado en índice ' + idx, 'rojo'); 
                     return; 
                 }
                 const ri  = ct.id 
@@ -1309,10 +1310,10 @@
                 if (obsEl) obsEl.value = ct.datos.observaciones || "";
                 App.calculos.actualizarTodo();
                 App.navegacion.irA('pantalla-resultados');
+                } catch(e) { App.util.toast('❌ ' + e.message, 'rojo'); console.error(e); }
             },
 
             async eliminarContrato(idx) {
-                if (!confirm('¿Eliminar este contrato?')) return;
                 const ord = App.util.ordenarPorFechaEvento(App.estado.contratos);
                 const ct  = ord[idx];
                 const ri  = ct.id
