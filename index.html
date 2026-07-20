@@ -1268,6 +1268,10 @@
             editarContrato(idx) {
                 const ord = App.util.ordenarPorFechaEvento(App.estado.contratos);
                 const ct  = ord[idx];
+                if (!ct || !ct.datos) { 
+                    App.util.toast('⚠️ Error al abrir el contrato', 'rojo'); 
+                    return; 
+                }
                 const ri  = ct.id 
                     ? App.estado.contratos.findIndex(c=>c.id===ct.id)
                     : App.estado.contratos.findIndex(c=>
@@ -1275,7 +1279,7 @@
                         JSON.stringify(c.personal)===JSON.stringify(ct.personal));
                 App.estado.contratoEditandoIndex=ri;
                 App.estado.contratoActual   = JSON.parse(JSON.stringify(ct.datos));
-                App.estado.seleccionados    = JSON.parse(JSON.stringify(ct.personal));
+                App.estado.seleccionados    = JSON.parse(JSON.stringify(ct.personal || []));
                 App.estado.seleccionados.forEach(m=>{ if(m.pagado===undefined) m.pagado=false; });
                 App.estado.gastoMovilidadReal = ct.gastoMovilidad||0;
 
@@ -1623,7 +1627,7 @@
                             <span class="numero-lista">${numMostrado}.</span><strong>${ct.datos.nombre}</strong><br>
                             <span class="${clFecha}">📅 ${fecha}</span> <span>⏰ ${App.util.formatearHorario(ct.datos.horaInicio,ct.datos.horaFin)}</span><br>
                             <span>Total: S/. ${((ct.datos.precioHora*ct.datos.horas)+ct.datos.movilidadCliente).toFixed(2)}</span>
-                            <span style="color:var(--green);font-weight:700;"> · Gan: S/. ${ct.gananciaNeta.toFixed(2)}</span>
+                            <span style="color:var(--green);font-weight:700;"> · Gan: S/. ${(ct.gananciaNeta||0).toFixed(2)}</span>
                             ${badgeGrupo}
                             ${ct.datos.observaciones?`<br><span style="color:#92400e;font-size:.82rem;">📝 ${ct.datos.observaciones}</span>`:''}
                             ${linkCt?`<br>${linkCt}`:''}
