@@ -1276,7 +1276,7 @@
                 App.estado.contratoEditandoIndex=ri;
                 App.estado.contratoActual   = JSON.parse(JSON.stringify(ct.datos));
                 App.estado.seleccionados    = JSON.parse(JSON.stringify(ct.personal));
-                App.estado.seleccionados.forEach((m,idx)=>{ if(m.pagado===undefined) m.pagado=false; });
+                App.estado.seleccionados.forEach(m=>{ if(m.pagado===undefined) m.pagado=false; });
                 App.estado.gastoMovilidadReal = ct.gastoMovilidad||0;
 
                 // Si es parte de un grupo múltiple, restaurar estado del grupo
