@@ -1267,50 +1267,50 @@
 
             editarContrato(idx) {
                 try {
-                const ord = App.util.ordenarPorFechaEvento(App.estado.contratos);
-                const ct  = ord[idx];
-                if (!ct || !ct.datos) { 
-                    App.util.toast('⚠️ Error: contrato no encontrado en índice ' + idx, 'rojo'); 
-                    return; 
-                }
-                const ri  = ct.id 
-                    ? App.estado.contratos.findIndex(c=>c.id===ct.id)
-                    : App.estado.contratos.findIndex(c=>
-                        JSON.stringify(c.datos)===JSON.stringify(ct.datos) &&
-                        JSON.stringify(c.personal)===JSON.stringify(ct.personal));
-                App.estado.contratoEditandoIndex=ri;
-                App.estado.contratoActual   = JSON.parse(JSON.stringify(ct.datos));
-                App.estado.seleccionados    = JSON.parse(JSON.stringify(ct.personal || []));
-                App.estado.seleccionados.forEach(m=>{ if(m.pagado===undefined) m.pagado=false; });
-                App.estado.gastoMovilidadReal = ct.gastoMovilidad||0;
+                    const ord = App.util.ordenarPorFechaEvento(App.estado.contratos);
+                    const ct  = ord[idx];
+                    if (!ct) { alert('Error: no se encontró el contrato'); return; }
 
-                // Si es parte de un grupo múltiple, restaurar estado del grupo
-                // para evitar duplicados al retroceder y guardar
-                if (ct.grupoId) {
-                    App.estado.grupoMultipleId = ct.grupoId;
-                    App.estado.grupoMultipleActual = ct.grupoIndice || 1;
-                    App.estado.grupoMultipleTotal = ct.grupoTotal || 1;
-                    App.estado.colaContratosMultiples = [];
-                } else {
-                    App.estado.grupoMultipleId = null;
-                    App.estado.colaContratosMultiples = [];
-                }
+                    // Buscar índice real
+                    let ri = -1;
+                    if (ct.id) {
+                        ri = App.estado.contratos.findIndex(c=>c.id===ct.id);
+                    }
+                    if (ri === -1) {
+                        ri = App.estado.contratos.indexOf(ct);
+                    }
+                    if (ri === -1) ri = idx;
 
-                document.getElementById('input-nombre-contrato').value   = ct.datos.nombre;
-                document.getElementById('input-fecha-firma').value       = ct.datos.fechaFirma||"";
-                document.getElementById('input-fecha-contrato').value    = ct.datos.fechaContrato||"";
-                document.getElementById('input-hora-inicio').value       = ct.datos.horaInicio||"";
-                document.getElementById('input-hora-fin').value          = ct.datos.horaFin||"";
-                document.getElementById('input-horas').value             = ct.datos.horas||0;
-                document.getElementById('input-cant-integrantes').value  = ct.datos.integrantes||0;
-                document.getElementById('input-precio-hora').value       = ct.datos.precioHora||0;
-                document.getElementById('input-movilidad').value         = ct.datos.movilidadCliente||0;
-                document.getElementById('input-adelanto-cliente').value  = ct.datos.adelantoCliente||0;
-                const obsEl = document.getElementById('input-observaciones');
-                if (obsEl) obsEl.value = ct.datos.observaciones || "";
-                App.calculos.actualizarTodo();
-                App.navegacion.irA('pantalla-resultados');
-                } catch(e) { App.util.toast('❌ ' + e.message, 'rojo'); console.error(e); }
+                    App.estado.contratoEditandoIndex = ri;
+                    App.estado.contratoActual = JSON.parse(JSON.stringify(ct.datos || {}));
+                    App.estado.seleccionados  = JSON.parse(JSON.stringify(ct.personal || []));
+                    App.estado.seleccionados.forEach(m=>{ if(!m.pagado) m.pagado=false; });
+                    App.estado.gastoMovilidadReal = ct.gastoMovilidad || 0;
+                    App.estado.grupoMultipleId = ct.grupoId || null;
+                    App.estado.grupoMultipleActual = ct.grupoIndice || 0;
+                    App.estado.grupoMultipleTotal = ct.grupoTotal || 0;
+                    App.estado.colaContratosMultiples = [];
+
+                    const set = (id, val) => { const el=document.getElementById(id); if(el) el.value=val||''; };
+                    set('input-nombre-contrato',   ct.datos.nombre);
+                    set('input-fecha-firma',        ct.datos.fechaFirma);
+                    set('input-fecha-contrato',     ct.datos.fechaContrato);
+                    set('input-hora-inicio',        ct.datos.horaInicio);
+                    set('input-hora-fin',           ct.datos.horaFin);
+                    set('input-horas',              ct.datos.horas||0);
+                    set('input-cant-integrantes',   ct.datos.integrantes||0);
+                    set('input-precio-hora',        ct.datos.precioHora||0);
+                    set('input-movilidad',          ct.datos.movilidadCliente||0);
+                    set('input-adelanto-cliente',   ct.datos.adelantoCliente||0);
+                    set('input-observaciones',      ct.datos.observaciones||'');
+
+                    App.render.resultados();
+                    App.navegacion.irA('pantalla-resultados');
+
+                } catch(e) {
+                    alert('Error al abrir contrato: ' + e.message);
+                    console.error(e);
+                }
             },
 
             async eliminarContrato(idx) {
