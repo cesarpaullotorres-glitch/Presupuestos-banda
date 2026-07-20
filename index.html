@@ -1159,7 +1159,9 @@
 
             confirmarSeleccion() {
                 const inputs = document.querySelectorAll('.input-seleccion');
-                const nuevos=[]; const usados=new Set(); let id=0;
+                const nuevos=[]; const usados=new Set();
+                // Usar timestamp como base para IDs únicos garantizados
+                let idBase = Date.now();
                 for (const inp of inputs) {
                     const n = inp.value.trim();
                     if (n) {
@@ -1172,11 +1174,13 @@
                         const anterior = App.estado.seleccionados.find(m => 
                             m.nombreDisplay.toLowerCase() === (esUtilero?'utilero':(ms?ms.nombreOriginal:n)).toLowerCase()
                         );
+                        // Siempre tomar tarifa actualizada del staff (por si cambió)
+                        const tarifaActual = ms ? ms.tarifa : 0;
                         nuevos.push({
-                            id: anterior ? anterior.id : id++,
+                            id: anterior ? anterior.id : idBase++,
                             nombreDisplay: esUtilero?'Utilero':(ms?ms.nombreOriginal:n),
                             tipo: esUtilero?'utilero':(ms?'planta':'invitado'),
-                            tarifaHora: anterior ? anterior.tarifaHora : (ms?ms.tarifa:0),
+                            tarifaHora: anterior ? anterior.tarifaHora : tarifaActual,
                             horasTocadas: anterior ? anterior.horasTocadas : App.estado.contratoActual.horas,
                             boloGlobal: anterior ? anterior.boloGlobal : 0,
                             adelantoDado: anterior ? anterior.adelantoDado : 0,
