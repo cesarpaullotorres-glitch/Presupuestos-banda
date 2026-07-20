@@ -1276,7 +1276,7 @@
                 App.estado.contratoEditandoIndex=ri;
                 App.estado.contratoActual   = JSON.parse(JSON.stringify(ct.datos));
                 App.estado.seleccionados    = JSON.parse(JSON.stringify(ct.personal));
-                App.estado.seleccionados.forEach(m=>{ if(m.pagado===undefined) m.pagado=false; });
+                App.estado.seleccionados.forEach((m,idx)=>{ if(m.pagado===undefined) m.pagado=false; });
                 App.estado.gastoMovilidadReal = ct.gastoMovilidad||0;
 
                 // Si es parte de un grupo múltiple, restaurar estado del grupo
@@ -1325,13 +1325,13 @@
         },
 
         calculos: {
-            actualizarCampo(id,campo,valor) {
-                const m = App.estado.seleccionados.find(m=>m.id===id);
-                if (m) { m[campo]=App.util.num(valor); this.actualizarTodo(); }
+            actualizarCampo(idx,campo,valor) {
+                const m = App.estado.seleccionados[idx];
+                if (m !== undefined) { m[campo]=App.util.num(valor); this.actualizarTodo(); }
             },
-            togglePagado(id) {
-                const m = App.estado.seleccionados.find(m=>m.id===id);
-                if (m) { m.pagado=!m.pagado; this.actualizarTodo(); }
+            togglePagado(idx) {
+                const m = App.estado.seleccionados[idx];
+                if (m !== undefined) { m.pagado=!m.pagado; this.actualizarTodo(); }
             },
             actualizarMovilidad(v) { App.estado.gastoMovilidadReal=App.util.num(v); this.actualizarTodo(); },
             actualizarTodo() { App.render.resultados(); App.sesion.guardar('pantalla-resultados'); },
@@ -1423,8 +1423,8 @@
 
                     // ✅ Campo bolo SIEMPRE visible para todos
                     const cBolo=`<input type="number" step="0.01" class="it bolo" value="${m.boloGlobal||0}"
-                        onblur="App.calculos.actualizarCampo(${m.id},'boloGlobal',this.value)"
-                        onkeypress="if(event.key==='Enter')App.calculos.actualizarCampo(${m.id},'boloGlobal',this.value)">`;
+                        onblur="App.calculos.actualizarCampo(${idx},'boloGlobal',this.value)"
+                        onkeypress="if(event.key==='Enter')App.calculos.actualizarCampo(${idx},'boloGlobal',this.value)">`;
 
                     if(m.tipo==='utilero'){
                         bruto=m.boloGlobal; cPrecio='N/A'; cHoras='N/A';
@@ -1433,11 +1433,11 @@
                     } else {
                         bruto=m.tarifaHora*m.horasTocadas;
                         cPrecio=`<input type="number" step="0.01" class="it tarifa" value="${m.tarifaHora}"
-                            onblur="App.calculos.actualizarCampo(${m.id},'tarifaHora',this.value)"
-                            onkeypress="if(event.key==='Enter')App.calculos.actualizarCampo(${m.id},'tarifaHora',this.value)">`;
+                            onblur="App.calculos.actualizarCampo(${idx},'tarifaHora',this.value)"
+                            onkeypress="if(event.key==='Enter')App.calculos.actualizarCampo(${idx},'tarifaHora',this.value)">`;
                         cHoras=`<input type="number" step="0.5" min="0" class="it horas" value="${m.horasTocadas}"
-                            onblur="App.calculos.actualizarCampo(${m.id},'horasTocadas',this.value)"
-                            onkeypress="if(event.key==='Enter')App.calculos.actualizarCampo(${m.id},'horasTocadas',this.value)">`;
+                            onblur="App.calculos.actualizarCampo(${idx},'horasTocadas',this.value)"
+                            onkeypress="if(event.key==='Enter')App.calculos.actualizarCampo(${idx},'horasTocadas',this.value)">`;
                     }
 
                     const neto=bruto-m.adelantoDado;
@@ -1480,13 +1480,13 @@
                         <td>${cHoras}</td>
                         <td>${cBolo}</td>
                         <td><input type="number" step="0.01" class="it adelanto" value="${m.adelantoDado}"
-                            onblur="App.calculos.actualizarCampo(${m.id},'adelantoDado',this.value)"
-                            onkeypress="if(event.key==='Enter')App.calculos.actualizarCampo(${m.id},'adelantoDado',this.value)"></td>
+                            onblur="App.calculos.actualizarCampo(${idx},'adelantoDado',this.value)"
+                            onkeypress="if(event.key==='Enter')App.calculos.actualizarCampo(${idx},'adelantoDado',this.value)"></td>
                         <td style="font-weight:700;color:${m.pagado?'#15803d':'#16a34a'};">
                             S/.${neto.toFixed(2)}
                             ${deudaAcum>0?`<br><span style="font-size:.75rem;color:#dc2626;font-weight:800;">Total: S/.${netoTotal.toFixed(2)}</span>`:''}
                         </td>
-                        <td><input type="checkbox" class="check-pagado" ${m.pagado?'checked':''} onchange="App.calculos.togglePagado(${m.id})"></td>
+                        <td><input type="checkbox" class="check-pagado" ${m.pagado?'checked':''} onchange="App.calculos.togglePagado(${idx})"></td>
                         <td>${cPagar}</td>`;
                     tb.appendChild(tr);
                 });
